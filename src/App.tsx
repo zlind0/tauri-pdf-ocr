@@ -3,10 +3,23 @@ import './App.css'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { readFile } from '@tauri-apps/plugin-fs'
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
-import workerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url'
+// Configure PDF.js worker with a Vite-friendly approach and a fallback
+import { SplitPane } from './SplitPane'
+import { TextExtraction } from './TextExtraction'
+import { Store } from '@tauri-apps/plugin-store'
 
-// Configure PDF.js worker
-GlobalWorkerOptions.workerSrc = workerSrc
+try {
+  // Preferred: let Vite load worker as module URL
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - query suffix handled by Vite
+  GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString()
+} catch (_) {
+  // Fallback to explicit URL import if bundler does not resolve above
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  // @vite-ignore
+  GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.mjs?url')).default
+}
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -21,6 +34,35 @@ function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const wheelLockRef = useRef(false)
   const renderTaskRef = useRef<import('pdfjs-dist').RenderTask | null>(null)
+  const [showTextExtraction, setShowTextExtraction] = useState(false)
+  const [splitPosition, setSplitPosition] = useState(50)
+
+  // Load saved split position
+  useEffect(() => {
+    const loadSplitPosition = async () => {
+      try {
+        const store = await Store.load('.settings.dat')
+        const savedPosition = await store.get<number>('split_position')
+        if (savedPosition) {
+          setSplitPosition(savedPosition)
+        }
+      } catch (error) {
+        console.error('Failed to load split position:', error)
+      }
+    }
+    loadSplitPosition()
+  }, [])
+
+  // Save split position
+  const saveSplitPosition = async (position: number) => {
+    try {
+      const store = await Store.load('.settings.dat')
+      await store.set('split_position', position)
+      await store.save()
+    } catch (error) {
+      console.error('Failed to save split position:', error)
+    }
+  }
 
   // Calculate optimal scale based on container size
   const calculateOptimalScale = useCallback((pageWidth: number, pageHeight: number, containerWidth: number, containerHeight: number) => {
@@ -169,6 +211,58 @@ function App() {
     [pdfDoc, goNext, goPrev],
   )
 
+  const handleSplitChange = useCallback((newPosition: number) => {
+    setSplitPosition(newPosition)
+    saveSplitPosition(newPosition)
+  }, [])
+
+  const toggleTextExtraction = useCallback(() => {
+    setShowTextExtraction(prev => !prev)
+  }, [])
+
+  const renderPdfViewer = () => (
+    <div 
+      ref={containerRef}
+      onWheel={handleWheel} 
+      style={{ 
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        overflow: 'hidden'
+      }}
+    >
+      <canvas 
+        ref={canvasRef} 
+        style={{ 
+
+        }} 
+      />
+    </div>
+  )
+
+  const renderContent = () => {
+    if (showTextExtraction) {
+      return (
+        <SplitPane
+          split="vertical"
+          size={splitPosition}
+          onChange={handleSplitChange}
+          style={{ height: '100%' }}
+        >
+          {renderPdfViewer()}
+          <TextExtraction 
+            canvasRef={canvasRef}
+            isActive={showTextExtraction}
+          />
+        </SplitPane>
+      )
+    }
+    
+    return renderPdfViewer()
+  }
+
   return (
     <div style={{ 
       display: 'flex', 
@@ -199,28 +293,24 @@ function App() {
             {pageNumber} / {numPages}
           </span>
         )}
+        <div style={{ marginLeft: 'auto' }}>
+          <button 
+            onClick={toggleTextExtraction}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              backgroundColor: showTextExtraction ? '#007bff' : 'white',
+              color: showTextExtraction ? 'white' : 'black',
+              cursor: 'pointer'
+            }}
+          >
+            文字提取
+          </button>
+        </div>
       </div>
-      {/* {loading && <div style={{ padding: '8px 16px', flexShrink: 0 }}>加载中...</div>} */}
       {error && <div style={{ color: 'red', padding: '8px 16px', flexShrink: 0 }}>错误: {error}</div>}
-      <div 
-        ref={containerRef}
-        onWheel={handleWheel} 
-        style={{ 
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px',
-          overflow: 'hidden'
-        }}
-      >
-        <canvas 
-          ref={canvasRef} 
-          style={{ 
-
-          }} 
-        />
-      </div>
+      {renderContent()}
     </div>
   )
 }

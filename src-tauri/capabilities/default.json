@@ -8,6 +8,15 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "fs:default"
+    "fs:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        "http://*:*",
+        "https://*:*"
+      ]
+    },
+    "store:default",
+    "log:default"
   ]
 }
