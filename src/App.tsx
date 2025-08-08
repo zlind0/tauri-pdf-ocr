@@ -31,8 +31,6 @@ function App() {
   const [pageNumber, setPageNumber] = useState(1)
   const [numPages, setNumPages] = useState(0)
   const [scale, setScale] = useState(1.5)
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
-  const containerRef = useRef<HTMLDivElement>(null)
   const wheelLockRef = useRef(false)
   const renderTaskRef = useRef<import('pdfjs-dist').RenderTask | null>(null)
   const [showTextExtraction, setShowTextExtraction] = useState(false)
@@ -70,27 +68,6 @@ function App() {
     } catch (error) {
       console.error('Failed to save state:', error)
     }
-  }, [])
-
-  // Calculate optimal scale based on container size
-  const calculateOptimalScale = useCallback((pageWidth: number, pageHeight: number, containerWidth: number, containerHeight: number) => {
-    const scaleX = (containerWidth - 32) / pageWidth // 32px for padding
-    const scaleY = (containerHeight - 32) / pageHeight
-    return Math.min(scaleX, scaleY, 2.0) // Max scale of 2.0
-  }, [])
-
-  // Update container size on resize
-  useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        setContainerSize({ width: rect.width, height: rect.height })
-      }
-    }
-    
-    updateSize()
-    window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
   }, [])
 
   const handleOpen = useCallback(async () => {
@@ -131,7 +108,7 @@ function App() {
   // Render current page
   useEffect(() => {
     const renderPage = async () => {
-      if (!pdfDoc || !canvasRef.current || !containerRef.current) return
+      if (!pdfDoc || !canvasRef.current) return
       
       // Cancel previous render task if it exists
       if (renderTaskRef.current) {
@@ -144,16 +121,8 @@ function App() {
         const page = await pdfDoc.getPage(pageNumber)
         const originalViewport = page.getViewport({ scale: 1.0 })
         
-        // Calculate optimal scale based on container size
-        const optimalScale = calculateOptimalScale(
-          originalViewport.width,
-          originalViewport.height,
-          containerSize.width,
-          containerSize.height
-        )
-        
-        setScale(optimalScale)
-        const viewport = page.getViewport({ scale: optimalScale })
+        // Use a fixed scale for consistent rendering
+        const viewport = page.getViewport({ scale: scale })
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')!
         
@@ -164,9 +133,9 @@ function App() {
         canvas.width = viewport.width * devicePixelRatio
         canvas.height = viewport.height * devicePixelRatio
         
-        // Scale the canvas CSS size
-        canvas.style.width = viewport.width + 'px'
-        canvas.style.height = viewport.height + 'px'
+        // Let CSS handle the display size
+        canvas.style.width = '100%'
+        canvas.style.height = '100vh'
         
         // Scale the context to match the device pixel ratio
         ctx.scale(devicePixelRatio, devicePixelRatio)
@@ -195,7 +164,7 @@ function App() {
         renderTaskRef.current = null
       }
     }
-  }, [pdfDoc, pageNumber, containerSize, calculateOptimalScale])
+  }, [pdfDoc, pageNumber, scale])
 
   const goPrev = useCallback(() => {
     setCanvasRendered(false)
@@ -242,22 +211,12 @@ function App() {
 
   const renderPdfViewer = () => (
     <div 
-      ref={containerRef}
       onWheel={handleWheel} 
-      style={{ 
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        overflow: 'hidden'
-      }}
+      className="pdf-container"
     >
       <canvas 
         ref={canvasRef} 
-        style={{ 
-
-        }} 
+        className="pdf-canvas"
       />
     </div>
   )
