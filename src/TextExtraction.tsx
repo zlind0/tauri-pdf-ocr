@@ -28,12 +28,20 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
       
       // Extract text using OCR
       const text = await OcrService.extractTextFromImage(dataUrl)
-      setExtractedText(text)
-    } catch (err: any) {
-      setError(err.message || '文字提取失败')
-    } finally {
+      
+      // 只有在请求没有被取消的情况下才更新文本
+      if (text !== '') {
+        setExtractedText(text)
+      }
       setLoading(false)
-    }
+    } catch (err: any) {
+      // 只有在不是取消请求的情况下才显示错误
+      if (err !== 'Request canceled') {
+        console.log(err)
+        setError(err.message || '文字提取失败')
+        setLoading(false)
+      }
+    } 
   }
 
   useEffect(() => {

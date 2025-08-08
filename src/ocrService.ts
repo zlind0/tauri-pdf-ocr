@@ -16,6 +16,8 @@ interface OcrResponse {
 }
 
 export class OcrService {
+  private static currentAbortController: AbortController | null = null
+
   private static async getSettings(): Promise<OcrSettings> {
     const store = await Store.load('.settings.dat')
     const settings = await store.get<OcrSettings>('ocr_settings')
@@ -26,6 +28,15 @@ export class OcrService {
   }
 
   static async extractTextFromImage(imageDataUrl: string): Promise<string> {
+    // 取消之前的请求
+    if (this.currentAbortController) {
+      this.currentAbortController.abort()
+    }
+
+    // 创建新的AbortController
+    this.currentAbortController = new AbortController()
+    const abortController = this.currentAbortController // 保存引用
+    
     try {
       const settings = await this.getSettings()
       
@@ -45,12 +56,13 @@ export class OcrService {
               role: 'user',
               content: [
                 { type: 'text', text: '请提取这张图片中的所有文字内容，保持原有的格式和结构。' },
-                { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Data}` } }
+                { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Data}` } } 
               ]
             }
           ],
           max_tokens: 4096
-        })
+        }),
+        signal: abortController.signal
       })
 
       if (!response.ok) {
@@ -59,9 +71,19 @@ export class OcrService {
 
       const data = await response.json()
       return data.choices[0]?.message?.content || '无法提取文字'
-    } catch (error) {
+    } catch (error: any) {
+      // 如果是取消请求导致的错误，不抛出错误
+      if (error.name === 'AbortError') {
+        console.log('OCR请求已被取消')
+        return ''
+      }
       console.error('OCR提取失败:', error)
       throw error
+    } finally {
+      // 只有当这个AbortController仍然是当前活动的控制器时才清理
+      if (this.currentAbortController === abortController) {
+        this.currentAbortController = null
+      }
     }
   }
 }
