@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Settings } from './Settings'
 import { OcrService } from './ocrService'
 
 interface TextExtractionProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
   isActive: boolean
+  pageNumber?: number // 添加页码属性
+  canvasRendered?: boolean // 添加canvas渲染状态
 }
 
-export function TextExtraction({ canvasRef, isActive }: TextExtractionProps) {
+export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered }: TextExtractionProps) {
   const [extractedText, setExtractedText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [autoOcrEnabled, setAutoOcrEnabled] = useState(true)
 
   const extractText = async () => {
     if (!canvasRef.current) return
@@ -34,10 +37,12 @@ export function TextExtraction({ canvasRef, isActive }: TextExtractionProps) {
   }
 
   useEffect(() => {
-    if (isActive && !extractedText) {
+    if (isActive && autoOcrEnabled && canvasRendered) {
+      // triggerAutoOcr()
+      console.log("ExtractText", canvasRendered, pageNumber, isActive, autoOcrEnabled)
       extractText()
     }
-  }, [isActive])
+  }, [canvasRendered, pageNumber, isActive, autoOcrEnabled])
 
   if (!isActive) return null
 
@@ -59,7 +64,16 @@ export function TextExtraction({ canvasRef, isActive }: TextExtractionProps) {
         borderBottom: '1px solid #ddd'
       }}>
         <h3 style={{ margin: 0 }}>文字提取</h3>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <input
+              type="checkbox"
+              checked={autoOcrEnabled}
+              onChange={(e) => setAutoOcrEnabled(e.target.checked)}
+              style={{ margin: 0 }}
+            />
+            自动OCR
+          </label>
           <button
             onClick={extractText}
             disabled={loading}
@@ -123,8 +137,8 @@ export function TextExtraction({ canvasRef, isActive }: TextExtractionProps) {
         ) : extractedText ? (
           extractedText
         ) : (
-          <div style={{ color: '#666' }}>
-            点击"重新提取"按钮开始文字提取
+          <div style={{ textAlign: 'left', color: '#666' }}>
+            {autoOcrEnabled ? '翻页时将自动提取文字' : '点击"重新提取"按钮开始文字提取'}
           </div>
         )}
       </div>

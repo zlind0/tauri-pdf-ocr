@@ -36,6 +36,7 @@ function App() {
   const renderTaskRef = useRef<import('pdfjs-dist').RenderTask | null>(null)
   const [showTextExtraction, setShowTextExtraction] = useState(false)
   const [splitPosition, setSplitPosition] = useState(50)
+  const [canvasRendered, setCanvasRendered] = useState(false)
 
   // Load saved split position
   useEffect(() => {
@@ -166,6 +167,9 @@ function App() {
         renderTaskRef.current = page.render({ canvasContext: ctx, viewport, canvas })
         await renderTaskRef.current.promise
         renderTaskRef.current = null
+        
+        // Mark canvas as rendered
+        setCanvasRendered(true)
       } catch (e: any) {
         if (e?.name !== 'RenderingCancelled') {
           setError(e?.message ?? String(e))
@@ -186,10 +190,12 @@ function App() {
   }, [pdfDoc, pageNumber, containerSize, calculateOptimalScale])
 
   const goPrev = useCallback(() => {
+    setCanvasRendered(false)
     setPageNumber((p) => Math.max(1, p - 1))
   }, [])
 
   const goNext = useCallback(() => {
+    setCanvasRendered(false)
     setPageNumber((p) => Math.min(numPages || 1, p + 1))
   }, [numPages])
 
@@ -255,6 +261,8 @@ function App() {
           <TextExtraction 
             canvasRef={canvasRef}
             isActive={showTextExtraction}
+            pageNumber={pageNumber}
+            canvasRendered={canvasRendered}
           />
         </SplitPane>
       )
