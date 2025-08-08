@@ -6,7 +6,8 @@ import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
 // Configure PDF.js worker with a Vite-friendly approach and a fallback
 import { SplitPane } from './SplitPane'
 import { TextExtraction } from './TextExtraction'
-import { Store } from '@tauri-apps/plugin-store'
+import { stateManager } from './stateManager'
+import type { AppState } from './stateManager'
 
 try {
   // Preferred: let Vite load worker as module URL
@@ -38,32 +39,38 @@ function App() {
   const [splitPosition, setSplitPosition] = useState(50)
   const [canvasRendered, setCanvasRendered] = useState(false)
 
-  // Load saved split position
+  // Load saved state on app start
   useEffect(() => {
-    const loadSplitPosition = async () => {
+    const loadSavedState = async () => {
       try {
-        const store = await Store.load('.settings.dat')
-        const savedPosition = await store.get<number>('split_position')
-        if (savedPosition) {
-          setSplitPosition(savedPosition)
+        const savedState = await stateManager.loadState()
+        if (savedState.filePath) {
+          setFilePath(savedState.filePath)
+        }
+        if (savedState.pageNumber) {
+          setPageNumber(savedState.pageNumber)
+        }
+        if (savedState.showTextExtraction !== undefined) {
+          setShowTextExtraction(savedState.showTextExtraction)
+        }
+        if (savedState.splitPosition) {
+          setSplitPosition(savedState.splitPosition)
         }
       } catch (error) {
-        console.error('Failed to load split position:', error)
+        console.error('Failed to load saved state:', error)
       }
     }
-    loadSplitPosition()
+    loadSavedState()
   }, [])
 
-  // Save split position
-  const saveSplitPosition = async (position: number) => {
+  // Save state when it changes
+  const saveState = useCallback(async (updates: Partial<AppState>) => {
     try {
-      const store = await Store.load('.settings.dat')
-      await store.set('split_position', position)
-      await store.save()
+      await stateManager.saveState(updates)
     } catch (error) {
-      console.error('Failed to save split position:', error)
+      console.error('Failed to save state:', error)
     }
-  }
+  }, [])
 
   // Calculate optimal scale based on container size
   const calculateOptimalScale = useCallback((pageWidth: number, pageHeight: number, containerWidth: number, containerHeight: number) => {
@@ -94,8 +101,9 @@ function App() {
     })
     if (typeof selected === 'string') {
       setFilePath(selected)
+      saveState({ filePath: selected, pageNumber: 1 })
     }
-  }, [])
+  }, [saveState])
 
   // Load PDF when file path changes
   useEffect(() => {
@@ -191,13 +199,17 @@ function App() {
 
   const goPrev = useCallback(() => {
     setCanvasRendered(false)
-    setPageNumber((p) => Math.max(1, p - 1))
-  }, [])
+    const newPageNumber = Math.max(1, pageNumber - 1)
+    setPageNumber(newPageNumber)
+    saveState({ pageNumber: newPageNumber })
+  }, [pageNumber, saveState])
 
   const goNext = useCallback(() => {
     setCanvasRendered(false)
-    setPageNumber((p) => Math.min(numPages || 1, p + 1))
-  }, [numPages])
+    const newPageNumber = Math.min(numPages || 1, pageNumber + 1)
+    setPageNumber(newPageNumber)
+    saveState({ pageNumber: newPageNumber })
+  }, [numPages, pageNumber, saveState])
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
@@ -219,12 +231,14 @@ function App() {
 
   const handleSplitChange = useCallback((newPosition: number) => {
     setSplitPosition(newPosition)
-    saveSplitPosition(newPosition)
-  }, [])
+    saveState({ splitPosition: newPosition })
+  }, [saveState])
 
   const toggleTextExtraction = useCallback(() => {
-    setShowTextExtraction(prev => !prev)
-  }, [])
+    const newShowTextExtraction = !showTextExtraction
+    setShowTextExtraction(newShowTextExtraction)
+    saveState({ showTextExtraction: newShowTextExtraction })
+  }, [showTextExtraction, saveState])
 
   const renderPdfViewer = () => (
     <div 
