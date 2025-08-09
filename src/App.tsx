@@ -36,6 +36,9 @@ function App() {
   const [splitPosition, setSplitPosition] = useState(50)
   const [canvasRendered, setCanvasRendered] = useState(false)
   const initialPageRef = useRef<number | null>(null)
+  // 目录相关状态
+  const [outline, setOutline] = useState<any[] | null>(null)
+  const [showOutline, setShowOutline] = useState(false)
 
   // Load saved state on app start
   useEffect(() => {
@@ -93,6 +96,9 @@ function App() {
         const loaded = await getDocument({ data }).promise
         setPdfDoc(loaded)
         setNumPages(loaded.numPages)
+        // 获取PDF目录
+        const outlineData = await loaded.getOutline()
+        setOutline(outlineData || null)
         // Decide initial page based on context (restore vs new open)
         const pending = initialPageRef.current ?? 1
         const clamped = Math.min(Math.max(pending, 1), loaded.numPages)
@@ -102,6 +108,7 @@ function App() {
         setError(e?.message ?? String(e))
         setPdfDoc(null)
         setNumPages(0)
+        setOutline(null)
       } finally {
         setLoading(false)
       }
@@ -206,6 +213,38 @@ function App() {
     saveState({ splitPosition: newPosition })
   }, [saveState])
 
+  // 处理目录项点击跳转
+  const handleOutlineItemClick = useCallback(async (dest: any) => {
+    if (!pdfDoc || !dest) return
+    
+    try {
+      // 解析目标位置信息
+      let pageNum = 1
+      if (typeof dest === 'string') {
+        // 如果dest是字符串，获取目标信息
+        const destInfo = await pdfDoc.getDestination(dest)
+        if (destInfo && destInfo[0]) {
+          const ref = destInfo[0]
+          const page = await pdfDoc.getPageIndex(ref)
+          pageNum = page + 1
+        }
+      } else if (Array.isArray(dest) && dest[0]) {
+        // 如果dest是数组，直接获取页面索引
+        const ref = dest[0]
+        const page = await pdfDoc.getPageIndex(ref)
+        pageNum = page + 1
+      }
+      
+      // 跳转到指定页面
+      const clampedPage = Math.min(Math.max(pageNum, 1), numPages)
+      setPageNumber(clampedPage)
+      saveState({ pageNumber: clampedPage })
+      setShowOutline(false) // 关闭目录面板
+    } catch (e) {
+      console.error('Failed to navigate to outline destination:', e)
+    }
+  }, [pdfDoc, numPages, saveState])
+
   const renderPdfViewer = () => (
     <div 
       onWheel={handleWheel} 
@@ -218,21 +257,124 @@ function App() {
     </div>
   )
 
+  // 渲染目录项
+  const renderOutlineItem = (item: any, depth = 0) => {
+    const hasChildren = item.items && item.items.length > 0
+    const paddingLeft = `${depth * 20}px`
+    
+    return (
+      <div key={item.title}>
+        <div 
+          style={{ 
+            padding: '6px 12px',
+            paddingLeft,
+            cursor: item.dest ? 'pointer' : 'default',
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: item.dest ? 'transparent' : '#f5f5f5',
+            color: item.dest ? '#333' : '#999',
+            fontSize: '14px',
+            borderLeft: depth > 0 ? '2px solid #eee' : 'none'
+          }}
+          onClick={() => item.dest && handleOutlineItemClick(item.dest)}
+        >
+          <span style={{ 
+            fontWeight: item.bold ? 'bold' : 'normal',
+            fontStyle: item.italic ? 'italic' : 'normal',
+            flex: 1
+          }}>
+            {item.title}
+          </span>
+          {item.dest && (
+            <span style={{ 
+              fontSize: '12px',
+              color: '#666',
+              marginLeft: '8px'
+            }}>
+              {/* 这里可以显示页码，但需要额外的处理来获取准确的页码 */}
+            </span>
+          )}
+        </div>
+        {hasChildren && (
+          <div>
+            {item.items.map((child: any) => renderOutlineItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // 渲染目录面板
+  const renderOutlinePanel = () => {
+    if (!outline || outline.length === 0) return null
+    
+    return (
+      <div style={{
+        position: 'absolute',
+        top: '40px',
+        left: '16px',
+        width: '400px',
+        maxHeight: '80vh',
+        backgroundColor: 'white',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        zIndex: 1000,
+        overflowY: 'auto',
+        textAlign: 'left',
+        padding: '12px'
+      }}>
+        <div style={{
+          padding: '12px',
+          borderBottom: '1px solid #eee',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <h3 style={{ margin: 0, fontSize: '16px' }}>目录</h3>
+          <button 
+            onClick={() => setShowOutline(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '0',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <div>
+          {outline.map(item => renderOutlineItem(item))}
+        </div>
+      </div>
+    )
+  }
+
   const renderContent = () => {
       return (
-        <SplitPane
-          split="vertical"
-          size={splitPosition}
-          onChange={handleSplitChange}
-          style={{ height: '100%' }}
-        >
-          {renderPdfViewer()}
-          <TextExtraction 
-            canvasRef={canvasRef}
-            pageNumber={pageNumber}
-            canvasRendered={canvasRendered}
-          />
-        </SplitPane>
+        <>
+          {showOutline && renderOutlinePanel()}
+          <SplitPane
+            split="vertical"
+            size={splitPosition}
+            onChange={handleSplitChange}
+            style={{ height: '100%' }}
+          >
+            {renderPdfViewer()}
+            <TextExtraction 
+              canvasRef={canvasRef}
+              pageNumber={pageNumber}
+              canvasRendered={canvasRendered}
+            />
+          </SplitPane>
+        </>
       )
   }
 
@@ -254,6 +396,17 @@ function App() {
         flexShrink: 0
       }}>
         <button onClick={handleOpen}>打开</button>
+        {filePath && outline && outline.length > 0 && (
+          <button 
+            onClick={() => setShowOutline(!showOutline)}
+            style={{
+              backgroundColor: showOutline ? '#007bff' : 'white',
+              color: showOutline ? 'white' : 'black'
+            }}
+          >
+            目录
+          </button>
+        )}
         {filePath && <span style={{ opacity: 0.7 }}>{filePath}</span>}
         <button onClick={goPrev} disabled={!pdfDoc || pageNumber <= 1}>
           &lt;
