@@ -7,6 +7,8 @@ export interface AppState {
   splitPosition: number
   textPanelFontFamily: string
   textPanelFontSize: number
+  autoOcrEnabled: boolean
+  autoTranslateEnabled: boolean
 }
 
 const DEFAULT_STATE: AppState = {
@@ -15,7 +17,9 @@ const DEFAULT_STATE: AppState = {
   showTextExtraction: false,
   splitPosition: 50,
   textPanelFontFamily: 'serif',
-  textPanelFontSize: 18
+  textPanelFontSize: 18,
+  autoOcrEnabled: false,
+  autoTranslateEnabled: false
 }
 
 class StateManager {

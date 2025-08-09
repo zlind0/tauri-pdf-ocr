@@ -278,7 +278,7 @@ function App() {
           &gt;
         </button>
         {pdfDoc && (
-          <span style={{ marginLeft: 8 , width: 36, textAlign: 'center'}}>
+          <span style={{ marginLeft: 8 , width: '70px', textAlign: 'center'}}>
             {pageNumber} / {numPages}
           </span>
         )}

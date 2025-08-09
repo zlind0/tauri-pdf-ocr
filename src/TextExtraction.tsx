@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { stateManager } from './stateManager'
 import { Settings } from './Settings'
 import { OcrService } from './ocrService'
@@ -17,9 +17,11 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
   const [error, setError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [autoOcrEnabled, setAutoOcrEnabled] = useState(true)
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(false)
   const [fontFamily, setFontFamily] = useState<string>('serif')
   const [fontSize, setFontSize] = useState<number>(18)
   const [translating, setTranslating] = useState(false)
+  const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
 
   const extractText = async () => {
     if (!canvasRef.current) return
@@ -36,6 +38,7 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
       
       // 只有在请求没有被取消的情况下才更新文本
       if (text !== '') {
+        lastUpdateSourceRef.current = 'ocr'
         setExtractedText(text)
       }
       setLoading(false)
@@ -57,13 +60,23 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
     }
   }, [canvasRendered, pageNumber, isActive, autoOcrEnabled])
 
-  // Load persisted font settings on mount
+  // 当 OCR 结果更新且开启自动翻译时，自动进行翻译
+  useEffect(() => {
+    if (!autoTranslateEnabled) return
+    if (lastUpdateSourceRef.current !== 'ocr') return
+    if (!extractedText) return
+    translateText()
+  }, [extractedText, autoTranslateEnabled])
+
+  // Load persisted font settings and auto flags on mount
   useEffect(() => {
     const load = async () => {
       try {
         const saved = await stateManager.loadState()
         if (saved.textPanelFontFamily) setFontFamily(saved.textPanelFontFamily)
         if (saved.textPanelFontSize) setFontSize(saved.textPanelFontSize)
+        if (typeof saved.autoOcrEnabled === 'boolean') setAutoOcrEnabled(saved.autoOcrEnabled)
+        if (typeof saved.autoTranslateEnabled === 'boolean') setAutoTranslateEnabled(saved.autoTranslateEnabled)
       } catch (err) {
         // noop
       }
@@ -71,13 +84,15 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
     load()
   }, [])
 
-  // Persist font settings when changed
+  // Persist font and auto flags when changed
   useEffect(() => {
     stateManager.saveState({
       textPanelFontFamily: fontFamily,
       textPanelFontSize: fontSize,
+      autoOcrEnabled,
+      autoTranslateEnabled,
     })
-  }, [fontFamily, fontSize])
+  }, [fontFamily, fontSize, autoOcrEnabled, autoTranslateEnabled])
 
   const handleZoomIn = () => setFontSize(prev => Math.min(prev + 2, 60))
   const handleZoomOut = () => setFontSize(prev => Math.max(prev - 2, 10))
@@ -89,6 +104,7 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
     try {
       const translated = await TranslationService.translate(extractedText, 'zh-CN')
       if (translated !== '') {
+        lastUpdateSourceRef.current = 'translate'
         setExtractedText(translated)
       }
     } catch (err: any) {
@@ -131,6 +147,15 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
               style={{ margin: 0 }}
             />
             自动OCR
+          </label>
+          <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <input
+              type="checkbox"
+              checked={autoTranslateEnabled}
+              onChange={(e) => setAutoTranslateEnabled(e.target.checked)}
+              style={{ margin: 0 }}
+            />
+            自动翻译
           </label>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 8 }}>
             <select
@@ -259,7 +284,7 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
           extractedText
         ) : (
           <div style={{ textAlign: 'left', color: '#666' }}>
-            {autoOcrEnabled ? '翻页时将自动提取文字' : '点击"重新提取"按钮开始文字提取'}
+            {autoOcrEnabled ? '翻页时将自动提取文字' : '点击"OCR"按钮开始文字提取'}
           </div>
         )}
       </div>
