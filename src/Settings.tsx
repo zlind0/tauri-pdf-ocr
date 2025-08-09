@@ -7,6 +7,12 @@ interface OcrSettings {
   model: string
 }
 
+interface TranslationSettings {
+  endpoint: string
+  apiKey: string
+  model: string
+}
+
 interface SettingsProps {
   isOpen: boolean
   onClose: () => void
@@ -14,6 +20,11 @@ interface SettingsProps {
 
 export function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<OcrSettings>({
+    endpoint: '',
+    apiKey: '',
+    model: ''
+  })
+  const [translationSettings, setTranslationSettings] = useState<TranslationSettings>({
     endpoint: '',
     apiKey: '',
     model: ''
@@ -33,6 +44,10 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
       if (savedSettings) {
         setSettings(savedSettings)
       }
+      const savedTranslationSettings = await store.get<TranslationSettings>('translation_settings')
+      if (savedTranslationSettings) {
+        setTranslationSettings(savedTranslationSettings)
+      }
     } catch (error) {
       console.error('Failed to load settings:', error)
     }
@@ -43,6 +58,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
     try {
       const store = await Store.load('.settings.dat')
       await store.set('ocr_settings', settings)
+      await store.set('translation_settings', translationSettings)
       await store.save()
       onClose()
     } catch (error) {
@@ -54,6 +70,13 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
 
   const handleInputChange = (field: keyof OcrSettings, value: string) => {
     setSettings(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handleTranslationInputChange = (field: keyof TranslationSettings, value: string) => {
+    setTranslationSettings(prev => ({
       ...prev,
       [field]: value
     }))
@@ -128,6 +151,63 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
             value={settings.model}
             onChange={(e) => handleInputChange('model', e.target.value)}
             placeholder="gpt-4-vision-preview"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px'
+            }}
+          />
+        </div>
+
+        <hr style={{ margin: '16px 0' }} />
+        <h2 style={{ margin: '0 0 20px 0' }}>翻译 设置</h2>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            API Endpoint:
+          </label>
+          <input
+            type="text"
+            value={translationSettings.endpoint}
+            onChange={(e) => handleTranslationInputChange('endpoint', e.target.value)}
+            placeholder="https://api.openai.com/v1"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px'
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            API Key:
+          </label>
+          <input
+            type="password"
+            value={translationSettings.apiKey}
+            onChange={(e) => handleTranslationInputChange('apiKey', e.target.value)}
+            placeholder="sk-..."
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px'
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            Model:
+          </label>
+          <input
+            type="text"
+            value={translationSettings.model}
+            onChange={(e) => handleTranslationInputChange('model', e.target.value)}
+            placeholder="gpt-4o-mini"
             style={{
               width: '100%',
               padding: '8px',

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { stateManager } from './stateManager'
 import { Settings } from './Settings'
 import { OcrService } from './ocrService'
+import { TranslationService } from './translationService'
 
 interface TextExtractionProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
@@ -18,6 +19,7 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
   const [autoOcrEnabled, setAutoOcrEnabled] = useState(true)
   const [fontFamily, setFontFamily] = useState<string>('serif')
   const [fontSize, setFontSize] = useState<number>(18)
+  const [translating, setTranslating] = useState(false)
 
   const extractText = async () => {
     if (!canvasRef.current) return
@@ -79,6 +81,25 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
 
   const handleZoomIn = () => setFontSize(prev => Math.min(prev + 2, 60))
   const handleZoomOut = () => setFontSize(prev => Math.max(prev - 2, 10))
+
+  const translateText = async () => {
+    if (!extractedText || translating) return
+    setTranslating(true)
+    setError(null)
+    try {
+      const translated = await TranslationService.translate(extractedText, 'zh-CN')
+      if (translated !== '') {
+        setExtractedText(translated)
+      }
+    } catch (err: any) {
+      if (err !== 'Request canceled') {
+        console.log(err)
+        setError(err.message || '翻译失败')
+      }
+    } finally {
+      setTranslating(false)
+    }
+  }
 
   if (!isActive) return null
 
@@ -171,7 +192,22 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
               fontSize: '12px'
             }}
           >
-            {loading ? '提取中...' : '重新提取'}
+            {loading ? 'OCR中...' : 'OCR'}
+          </button>
+          <button
+            onClick={translateText}
+            disabled={translating || !extractedText}
+            style={{
+              padding: '6px 12px',
+              border: 'none',
+              borderRadius: '4px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              cursor: translating || !extractedText ? 'not-allowed' : 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            {translating ? '翻译中...' : '翻译'}
           </button>
           <button
             onClick={() => setShowSettings(true)}
