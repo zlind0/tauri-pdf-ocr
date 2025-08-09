@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
-import { readFile } from '@tauri-apps/plugin-fs'
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
+import { GlobalWorkerOptions } from 'pdfjs-dist'
 // Configure PDF.js worker with a Vite-friendly approach and a fallback
 import { SplitPane } from './SplitPane'
 import { TextExtraction } from './TextExtraction'
 import { OutlinePanel } from './OutlinePanel'
 import { stateManager } from './stateManager'
 import type { AppState } from './stateManager'
+import { loadPdfDocument, processPdfOutline } from './pdfUtils'
 
 try {
   // Preferred: let Vite load worker as module URL
@@ -93,13 +93,13 @@ function App() {
       setLoading(true)
       setError(null)
       try {
-        const data = await readFile(filePath)
-        const loaded = await getDocument({ data }).promise
+        const loaded = await loadPdfDocument(filePath)
         setPdfDoc(loaded)
         setNumPages(loaded.numPages)
-        // 获取PDF目录
-        const outlineData = await loaded.getOutline()
-        setOutline(outlineData || null)
+        // 获取并处理PDF目录
+        const processedOutline = await processPdfOutline(loaded)
+        setOutline(processedOutline)
+        
         // Decide initial page based on context (restore vs new open)
         const pending = initialPageRef.current ?? 1
         const clamped = Math.min(Math.max(pending, 1), loaded.numPages)
@@ -269,7 +269,6 @@ function App() {
               onClose={() => setShowOutline(false)} 
               onItemClick={handleOutlineItemClick} 
               currentPage={pageNumber}
-              pdfDoc={pdfDoc}
             />
           )}
           <SplitPane

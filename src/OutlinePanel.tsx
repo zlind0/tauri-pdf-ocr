@@ -1,57 +1,18 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface OutlineItemProps {
   item: any
   depth?: number
   onItemClick: (dest: any) => void
   currentPage: number
-  pdfDoc: import('pdfjs-dist').PDFDocumentProxy | null
 }
 
-const OutlineItem = ({ item, depth = 0, onItemClick, currentPage, pdfDoc }: OutlineItemProps) => {
+const OutlineItem = ({ item, depth = 0, onItemClick, currentPage }: OutlineItemProps) => {
   const hasChildren = item.items && item.items.length > 0
   const paddingLeft = `${depth * 20}px`
   
-  // 获取目标页码
-  const getPageNumber = useCallback(async (dest: any) => {
-    if (!pdfDoc || !dest) return null
-    
-    try {
-      let pageNum = 1
-      if (typeof dest === 'string') {
-        // 如果dest是字符串，获取目标信息
-        const destInfo = await pdfDoc.getDestination(dest)
-        if (destInfo && destInfo[0]) {
-          const ref = destInfo[0]
-          const page = await pdfDoc.getPageIndex(ref)
-          pageNum = page + 1
-        }
-      } else if (Array.isArray(dest) && dest[0]) {
-        // 如果dest是数组，直接获取页面索引
-        const ref = dest[0]
-        const page = await pdfDoc.getPageIndex(ref)
-        pageNum = page + 1
-      }
-      return pageNum
-    } catch (e) {
-      console.error('Failed to get page number:', e)
-      return null
-    }
-  }, [pdfDoc])
-
-  // 解析页码
-  const pageNumberRef = useRef<number | null>(null)
-  
-  useEffect(() => {
-    if (item.dest) {
-      getPageNumber(item.dest).then(pageNum => {
-        pageNumberRef.current = pageNum
-      })
-    }
-  }, [item.dest, getPageNumber])
-
   // 检查是否是当前页面
-  const isCurrentPage = pageNumberRef.current === currentPage
+  const isCurrentPage = item.pageNumber === currentPage
 
   return (
     <div key={item.title}>
@@ -76,13 +37,13 @@ const OutlineItem = ({ item, depth = 0, onItemClick, currentPage, pdfDoc }: Outl
         }}>
           {item.title}
         </span>
-        {item.dest && pageNumberRef.current && (
+        {item.dest && item.pageNumber && (
           <span style={{ 
             fontSize: '12px',
             color: isCurrentPage ? '#0066cc' : '#666',
             marginLeft: '8px'
           }}>
-            {pageNumberRef.current}
+            {item.pageNumber}
           </span>
         )}
       </div>
@@ -95,7 +56,6 @@ const OutlineItem = ({ item, depth = 0, onItemClick, currentPage, pdfDoc }: Outl
               depth={depth + 1} 
               onItemClick={onItemClick} 
               currentPage={currentPage}
-              pdfDoc={pdfDoc}
             />
           ))}
         </div>
@@ -109,24 +69,28 @@ interface OutlinePanelProps {
   onClose: () => void
   onItemClick: (dest: any) => void
   currentPage: number
-  pdfDoc: import('pdfjs-dist').PDFDocumentProxy | null
 }
 
-export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage, pdfDoc }: OutlinePanelProps) => {
+export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: OutlinePanelProps) => {
   const outlineRef = useRef<HTMLDivElement>(null)
   
   if (!outline || outline.length === 0) return null
   
   // 滚动到当前章节
   useEffect(() => {
-    if (outlineRef.current) {
-      // 查找当前页面对应的章节元素
-      const currentElements = outlineRef.current.querySelectorAll('[style*="#e6f0ff"], [style*="#0066cc"]')
-      if (currentElements.length > 0) {
-        const firstCurrentElement = currentElements[0] as HTMLElement
-        firstCurrentElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // 延迟执行以确保DOM已更新
+    const timer = setTimeout(() => {
+      if (outlineRef.current) {
+        // 查找当前页面对应的章节元素
+        const currentElements = outlineRef.current.querySelectorAll('[style*="#e6f0ff"], [style*="#0066cc"]')
+        if (currentElements.length > 0) {
+          const firstCurrentElement = currentElements[0] as HTMLElement
+          firstCurrentElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
       }
-    }
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [currentPage])
 
   return (
@@ -178,7 +142,6 @@ export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage, pdfDo
             item={item} 
             onItemClick={onItemClick} 
             currentPage={currentPage}
-            pdfDoc={pdfDoc}
           />
         ))}
       </div>
