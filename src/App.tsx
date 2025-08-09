@@ -33,7 +33,6 @@ function App() {
   const [scale] = useState(1.5)
   const wheelLockRef = useRef(false)
   const renderTaskRef = useRef<import('pdfjs-dist').RenderTask | null>(null)
-  const [showTextExtraction, setShowTextExtraction] = useState(false)
   const [splitPosition, setSplitPosition] = useState(50)
   const [canvasRendered, setCanvasRendered] = useState(false)
   const initialPageRef = useRef<number | null>(null)
@@ -49,9 +48,6 @@ function App() {
         if (savedState.pageNumber) {
           setPageNumber(savedState.pageNumber)
           initialPageRef.current = savedState.pageNumber
-        }
-        if (savedState.showTextExtraction !== undefined) {
-          setShowTextExtraction(savedState.showTextExtraction)
         }
         if (savedState.splitPosition) {
           setSplitPosition(savedState.splitPosition)
@@ -210,12 +206,6 @@ function App() {
     saveState({ splitPosition: newPosition })
   }, [saveState])
 
-  const toggleTextExtraction = useCallback(() => {
-    const newShowTextExtraction = !showTextExtraction
-    setShowTextExtraction(newShowTextExtraction)
-    saveState({ showTextExtraction: newShowTextExtraction })
-  }, [showTextExtraction, saveState])
-
   const renderPdfViewer = () => (
     <div 
       onWheel={handleWheel} 
@@ -229,7 +219,6 @@ function App() {
   )
 
   const renderContent = () => {
-    if (showTextExtraction) {
       return (
         <SplitPane
           split="vertical"
@@ -240,15 +229,11 @@ function App() {
           {renderPdfViewer()}
           <TextExtraction 
             canvasRef={canvasRef}
-            isActive={showTextExtraction}
             pageNumber={pageNumber}
             canvasRendered={canvasRendered}
           />
         </SplitPane>
       )
-    }
-    
-    return renderPdfViewer()
   }
 
   return (
@@ -282,19 +267,7 @@ function App() {
           </span>
         )}
         <div style={{ marginLeft: 'auto' }}>
-          <button 
-            onClick={toggleTextExtraction}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              backgroundColor: showTextExtraction ? '#007bff' : 'white',
-              color: showTextExtraction ? 'white' : 'black',
-              cursor: 'pointer'
-            }}
-          >
-            文字提取
-          </button>
+         
         </div>
       </div>
       {renderContent()}

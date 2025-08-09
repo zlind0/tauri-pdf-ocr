@@ -6,12 +6,11 @@ import { TranslationService } from './translationService'
 
 interface TextExtractionProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
-  isActive: boolean
   pageNumber?: number // 添加页码属性
   canvasRendered?: boolean // 添加canvas渲染状态
 }
 
-export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered }: TextExtractionProps) {
+export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextExtractionProps) {
   const [extractedText, setExtractedText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,12 +52,12 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
   }
 
   useEffect(() => {
-    if (isActive && autoOcrEnabled && canvasRendered) {
+    if (autoOcrEnabled && canvasRendered) {
       // triggerAutoOcr()
-      console.log("ExtractText", canvasRendered, pageNumber, isActive, autoOcrEnabled)
+      console.log("ExtractText", canvasRendered, pageNumber, autoOcrEnabled)
       extractText()
     }
-  }, [canvasRendered, pageNumber, isActive, autoOcrEnabled])
+  }, [canvasRendered, pageNumber, autoOcrEnabled])
 
   // 当 OCR 结果更新且开启自动翻译时，自动进行翻译
   useEffect(() => {
@@ -116,8 +115,6 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
       setTranslating(false)
     }
   }
-
-  if (!isActive) return null
 
   return (
     <div style={{

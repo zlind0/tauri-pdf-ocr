@@ -3,7 +3,6 @@ import { Store } from '@tauri-apps/plugin-store'
 export interface AppState {
   filePath: string | null
   pageNumber: number
-  showTextExtraction: boolean
   splitPosition: number
   textPanelFontFamily: string
   textPanelFontSize: number
@@ -14,7 +13,6 @@ export interface AppState {
 const DEFAULT_STATE: AppState = {
   filePath: null,
   pageNumber: 1,
-  showTextExtraction: false,
   splitPosition: 50,
   textPanelFontFamily: 'serif',
   textPanelFontSize: 18,
