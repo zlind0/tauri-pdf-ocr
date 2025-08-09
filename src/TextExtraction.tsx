@@ -136,7 +136,8 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
         fontFamily: 'monospace',
         fontSize: '14px',
         lineHeight: '1.5',
-        whiteSpace: 'pre-wrap'
+        whiteSpace: 'pre-wrap',
+        textAlign: 'left'
       }}>
         {loading ? (
           <div style={{ textAlign: 'center', color: '#666' }}>
