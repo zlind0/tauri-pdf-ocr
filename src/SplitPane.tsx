@@ -65,7 +65,8 @@ export function SplitPane({
       style={{
         display: 'flex',
         flexDirection: split === 'vertical' ? 'row' : 'column',
-        height: '100%',
+        minHeight: '0',
+        flex: 1,
         ...style
       }}
     >

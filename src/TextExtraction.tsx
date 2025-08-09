@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { stateManager } from './stateManager'
 import { Settings } from './Settings'
 import { OcrService } from './ocrService'
 
@@ -15,6 +16,8 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
   const [error, setError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [autoOcrEnabled, setAutoOcrEnabled] = useState(true)
+  const [fontFamily, setFontFamily] = useState<string>('serif')
+  const [fontSize, setFontSize] = useState<number>(18)
 
   const extractText = async () => {
     if (!canvasRef.current) return
@@ -52,6 +55,31 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
     }
   }, [canvasRendered, pageNumber, isActive, autoOcrEnabled])
 
+  // Load persisted font settings on mount
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const saved = await stateManager.loadState()
+        if (saved.textPanelFontFamily) setFontFamily(saved.textPanelFontFamily)
+        if (saved.textPanelFontSize) setFontSize(saved.textPanelFontSize)
+      } catch (err) {
+        // noop
+      }
+    }
+    load()
+  }, [])
+
+  // Persist font settings when changed
+  useEffect(() => {
+    stateManager.saveState({
+      textPanelFontFamily: fontFamily,
+      textPanelFontSize: fontSize,
+    })
+  }, [fontFamily, fontSize])
+
+  const handleZoomIn = () => setFontSize(prev => Math.min(prev + 2, 60))
+  const handleZoomOut = () => setFontSize(prev => Math.max(prev - 2, 10))
+
   if (!isActive) return null
 
   return (
@@ -61,7 +89,8 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
       height: '100%',
       padding: '16px',
       backgroundColor: '#f8f9fa',
-      borderLeft: '1px solid #ddd'
+      borderLeft: '1px solid #ddd',
+      boxSizing: 'border-box'
     }}>
       <div style={{
         display: 'flex',
@@ -82,6 +111,53 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
             />
             自动OCR
           </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 8 }}>
+            <select
+              value={fontFamily}
+              onChange={(e) => setFontFamily(e.target.value)}
+              title="字体"
+              style={{
+                padding: '4px 8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: 'white',
+                fontSize: '12px'
+              }}
+            >
+              <option value="serif">Serif</option>
+              <option value="sans-serif">Sans-serif</option>
+              <option value="monospace">Monospace</option>
+            </select>
+            <button
+              onClick={handleZoomOut}
+              title="减小字体"
+              style={{
+                padding: '4px 8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              A-
+            </button>
+            <span style={{ fontSize: 12, minWidth: 32, textAlign: 'center' }}>{fontSize}px</span>
+            <button
+              onClick={handleZoomIn}
+              title="放大字体"
+              style={{
+                padding: '4px 8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              A+
+            </button>
+          </div>
           <button
             onClick={extractText}
             disabled={loading}
@@ -133,8 +209,8 @@ export function TextExtraction({ canvasRef, isActive, pageNumber, canvasRendered
         border: '1px solid #ddd',
         borderRadius: '4px',
         padding: '16px',
-        fontFamily: 'monospace',
-        fontSize: '14px',
+        fontFamily: fontFamily,
+        fontSize: `${fontSize}px`,
         lineHeight: '1.5',
         whiteSpace: 'pre-wrap',
         textAlign: 'left'

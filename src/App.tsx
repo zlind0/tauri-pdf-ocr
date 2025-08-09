@@ -36,6 +36,7 @@ function App() {
   const [showTextExtraction, setShowTextExtraction] = useState(false)
   const [splitPosition, setSplitPosition] = useState(50)
   const [canvasRendered, setCanvasRendered] = useState(false)
+  const initialPageRef = useRef<number | null>(null)
 
   // Load saved state on app start
   useEffect(() => {
@@ -47,6 +48,7 @@ function App() {
         }
         if (savedState.pageNumber) {
           setPageNumber(savedState.pageNumber)
+          initialPageRef.current = savedState.pageNumber
         }
         if (savedState.showTextExtraction !== undefined) {
           setShowTextExtraction(savedState.showTextExtraction)
@@ -77,6 +79,8 @@ function App() {
       filters: [{ name: 'PDF', extensions: ['pdf'] }],
     })
     if (typeof selected === 'string') {
+      // For newly opened files, start from page 1
+      initialPageRef.current = 1
       setFilePath(selected)
       saveState({ filePath: selected, pageNumber: 1 })
     }
@@ -93,7 +97,11 @@ function App() {
         const loaded = await getDocument({ data }).promise
         setPdfDoc(loaded)
         setNumPages(loaded.numPages)
-        setPageNumber(1)
+        // Decide initial page based on context (restore vs new open)
+        const pending = initialPageRef.current ?? 1
+        const clamped = Math.min(Math.max(pending, 1), loaded.numPages)
+        setPageNumber(clamped)
+        initialPageRef.current = null
       } catch (e: any) {
         setError(e?.message ?? String(e))
         setPdfDoc(null)
@@ -290,7 +298,6 @@ function App() {
           </button>
         </div>
       </div>
-      {error && <div style={{ color: 'red', padding: '8px 16px', flexShrink: 0 }}>错误: {error}</div>}
       {renderContent()}
     </div>
   )

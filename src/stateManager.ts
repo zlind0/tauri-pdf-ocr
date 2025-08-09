@@ -5,13 +5,17 @@ export interface AppState {
   pageNumber: number
   showTextExtraction: boolean
   splitPosition: number
+  textPanelFontFamily: string
+  textPanelFontSize: number
 }
 
 const DEFAULT_STATE: AppState = {
   filePath: null,
   pageNumber: 1,
   showTextExtraction: false,
-  splitPosition: 50
+  splitPosition: 50,
+  textPanelFontFamily: 'serif',
+  textPanelFontSize: 18
 }
 
 class StateManager {
