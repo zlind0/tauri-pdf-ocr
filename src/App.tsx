@@ -6,6 +6,7 @@ import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
 // Configure PDF.js worker with a Vite-friendly approach and a fallback
 import { SplitPane } from './SplitPane'
 import { TextExtraction } from './TextExtraction'
+import { OutlinePanel } from './OutlinePanel'
 import { stateManager } from './stateManager'
 import type { AppState } from './stateManager'
 
@@ -257,110 +258,20 @@ function App() {
     </div>
   )
 
-  // 渲染目录项
-  const renderOutlineItem = (item: any, depth = 0) => {
-    const hasChildren = item.items && item.items.length > 0
-    const paddingLeft = `${depth * 20}px`
-    
-    return (
-      <div key={item.title}>
-        <div 
-          style={{ 
-            padding: '6px 12px',
-            paddingLeft,
-            cursor: item.dest ? 'pointer' : 'default',
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: item.dest ? 'transparent' : '#f5f5f5',
-            color: item.dest ? '#333' : '#999',
-            fontSize: '14px',
-            borderLeft: depth > 0 ? '2px solid #eee' : 'none'
-          }}
-          onClick={() => item.dest && handleOutlineItemClick(item.dest)}
-        >
-          <span style={{ 
-            fontWeight: item.bold ? 'bold' : 'normal',
-            fontStyle: item.italic ? 'italic' : 'normal',
-            flex: 1
-          }}>
-            {item.title}
-          </span>
-          {item.dest && (
-            <span style={{ 
-              fontSize: '12px',
-              color: '#666',
-              marginLeft: '8px'
-            }}>
-              {/* 这里可以显示页码，但需要额外的处理来获取准确的页码 */}
-            </span>
-          )}
-        </div>
-        {hasChildren && (
-          <div>
-            {item.items.map((child: any) => renderOutlineItem(child, depth + 1))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // 渲染目录面板
-  const renderOutlinePanel = () => {
-    if (!outline || outline.length === 0) return null
-    
-    return (
-      <div style={{
-        position: 'absolute',
-        top: '40px',
-        left: '16px',
-        width: '400px',
-        maxHeight: '80vh',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        zIndex: 1000,
-        overflowY: 'auto',
-        textAlign: 'left',
-        padding: '12px'
-      }}>
-        <div style={{
-          padding: '12px',
-          borderBottom: '1px solid #eee',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <h3 style={{ margin: 0, fontSize: '16px' }}>目录</h3>
-          <button 
-            onClick={() => setShowOutline(false)}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '0',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            ×
-          </button>
-        </div>
-        <div>
-          {outline.map(item => renderOutlineItem(item))}
-        </div>
-      </div>
-    )
-  }
+  
 
   const renderContent = () => {
       return (
         <>
-          {showOutline && renderOutlinePanel()}
+          {showOutline && (
+            <OutlinePanel 
+              outline={outline} 
+              onClose={() => setShowOutline(false)} 
+              onItemClick={handleOutlineItemClick} 
+              currentPage={pageNumber}
+              pdfDoc={pdfDoc}
+            />
+          )}
           <SplitPane
             split="vertical"
             size={splitPosition}
