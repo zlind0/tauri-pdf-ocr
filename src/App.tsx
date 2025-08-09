@@ -25,12 +25,12 @@ try {
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [filePath, setFilePath] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [_, setLoading] = useState(false)
+  const [__, setError] = useState<string | null>(null)
   const [pdfDoc, setPdfDoc] = useState<import('pdfjs-dist').PDFDocumentProxy | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [numPages, setNumPages] = useState(0)
-  const [scale, setScale] = useState(1.5)
+  const [scale] = useState(1.5)
   const wheelLockRef = useRef(false)
   const renderTaskRef = useRef<import('pdfjs-dist').RenderTask | null>(null)
   const [showTextExtraction, setShowTextExtraction] = useState(false)
@@ -127,7 +127,6 @@ function App() {
       setLoading(true)
       try {
         const page = await pdfDoc.getPage(pageNumber)
-        const originalViewport = page.getViewport({ scale: 1.0 })
         
         // Use a fixed scale for consistent rendering
         const viewport = page.getViewport({ scale: scale })

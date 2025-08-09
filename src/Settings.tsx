@@ -5,6 +5,7 @@ interface OcrSettings {
   endpoint: string
   apiKey: string
   model: string
+  engine?: 'llm' | 'system' // 添加引擎选择
 }
 
 interface TranslationSettings {
@@ -22,7 +23,8 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<OcrSettings>({
     endpoint: '',
     apiKey: '',
-    model: ''
+    model: '',
+    engine: 'llm' // 默认使用LLM引擎
   })
   const [translationSettings, setTranslationSettings] = useState<TranslationSettings>({
     endpoint: '',
@@ -42,6 +44,10 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
       const store = await Store.load('.settings.dat')
       const savedSettings = await store.get<OcrSettings>('ocr_settings')
       if (savedSettings) {
+        // 确保引擎设置有默认值
+        if (!savedSettings.engine) {
+          savedSettings.engine = 'llm'
+        }
         setSettings(savedSettings)
       }
       const savedTranslationSettings = await store.get<TranslationSettings>('translation_settings')
@@ -108,57 +114,81 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
         
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            API Endpoint:
+            OCR 引擎:
           </label>
-          <input
-            type="text"
-            value={settings.endpoint}
-            onChange={(e) => handleInputChange('endpoint', e.target.value)}
-            placeholder="https://api.openai.com/v1"
+          <select
+            value={settings.engine || 'llm'}
+            onChange={(e) => handleInputChange('engine', e.target.value as 'llm' | 'system')}
             style={{
               width: '100%',
               padding: '8px',
               border: '1px solid #ddd',
               borderRadius: '4px'
             }}
-          />
+          >
+            <option value="llm">LLM 引擎</option>
+            <option value="system">系统 OCR (仅 macOS)</option>
+          </select>
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            API Key:
-          </label>
-          <input
-            type="password"
-            value={settings.apiKey}
-            onChange={(e) => handleInputChange('apiKey', e.target.value)}
-            placeholder="sk-..."
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
+        {/* 只有在选择LLM引擎时才显示API设置 */}
+        {settings.engine !== 'system' && (
+          <>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+                API Endpoint:
+              </label>
+              <input
+                type="text"
+                value={settings.endpoint}
+                onChange={(e) => handleInputChange('endpoint', e.target.value)}
+                placeholder="https://api.openai.com/v1"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
 
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            Model:
-          </label>
-          <input
-            type="text"
-            value={settings.model}
-            onChange={(e) => handleInputChange('model', e.target.value)}
-            placeholder="gpt-4-vision-preview"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+                API Key:
+              </label>
+              <input
+                type="password"
+                value={settings.apiKey}
+                onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                placeholder="sk-..."
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+                Model:
+              </label>
+              <input
+                type="text"
+                value={settings.model}
+                onChange={(e) => handleInputChange('model', e.target.value)}
+                placeholder="gpt-4-vision-preview"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+          </>
+        )}
 
         <hr style={{ margin: '16px 0' }} />
         <h2 style={{ margin: '0 0 20px 0' }}>翻译 设置</h2>

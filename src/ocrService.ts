@@ -1,18 +1,12 @@
 import { Store } from '@tauri-apps/plugin-store'
 import { fetch } from '@tauri-apps/plugin-http'
+import { invoke } from '@tauri-apps/api/core'
 
 interface OcrSettings {
   endpoint: string
   apiKey: string
   model: string
-}
-
-interface OcrResponse {
-  choices: Array<{
-    message: {
-      content: string
-    }
-  }>
+  engine: 'llm' | 'system' // 添加引擎选择
 }
 
 export class OcrService {
@@ -23,6 +17,10 @@ export class OcrService {
     const settings = await store.get<OcrSettings>('ocr_settings')
     if (!settings || !settings.endpoint || !settings.apiKey || !settings.model) {
       throw new Error('请先配置OCR设置')
+    }
+    // 默认使用LLM引擎
+    if (!settings.engine) {
+      settings.engine = 'llm'
     }
     return settings
   }
@@ -40,37 +38,14 @@ export class OcrService {
     try {
       const settings = await this.getSettings()
       
-      // Convert data URL to base64
-      const base64Data = imageDataUrl.split(',')[1]
-      
-      const response = await fetch(`${settings.endpoint}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`
-        },
-        body: JSON.stringify({
-          model: settings.model,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: '请提取这张图片中的所有文字内容，保持原有的格式和结构。' },
-                { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Data}` } } 
-              ]
-            }
-          ],
-          max_tokens: 4096
-        }),
-        signal: abortController.signal
-      })
-
-      if (!response.ok) {
-        throw new Error(`API请求失败: ${response.status}`)
+      // 根据选择的引擎执行不同的OCR方法
+      if (settings.engine === 'system') {
+        // 使用系统OCR引擎 (仅macOS)
+        return await this.extractTextWithSystemOcr(imageDataUrl)
+      } else {
+        // 使用默认的LLM引擎
+        return await this.extractTextWithLlm(imageDataUrl, settings, abortController)
       }
-
-      const data = await response.json()
-      return data.choices[0]?.message?.content || '无法提取文字'
     } catch (error: any) {
       // 如果是取消请求导致的错误，不抛出错误
       if (error.name === 'AbortError') {
@@ -84,6 +59,68 @@ export class OcrService {
       if (this.currentAbortController === abortController) {
         this.currentAbortController = null
       }
+    }
+  }
+
+  private static async extractTextWithLlm(
+    imageDataUrl: string, 
+    settings: OcrSettings, 
+    abortController: AbortController
+  ): Promise<string> {
+    // Convert data URL to base64
+    const base64Data = imageDataUrl.split(',')[1]
+    
+    const response = await fetch(`${settings.endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: '请提取这张图片中的所有文字内容，保持原有的格式和结构。' },
+              { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Data}` } } 
+            ]
+          }
+        ],
+        max_tokens: 4096
+      }),
+      signal: abortController.signal
+    })
+
+    if (!response.ok) {
+      throw new Error(`API请求失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.choices[0]?.message?.content || '无法提取文字'
+  }
+
+  private static async extractTextWithSystemOcr(imageDataUrl: string): Promise<string> {
+    // Convert data URL to base64 (去掉data:image/png;base64,前缀)
+    const base64Data = imageDataUrl.split(',')[1]
+    
+    try {
+      // 调用Rust命令执行系统OCR
+      const result: { text: string; success: boolean; error_message?: string } = 
+        await invoke('extract_text_with_system_ocr', {
+          request: {
+            image_data: base64Data
+          }
+        })
+      
+      if (result.success) {
+        return result.text
+      } else {
+        throw new Error(result.error_message || '系统OCR失败')
+      }
+    } catch (error) {
+      console.error('系统OCR调用失败:', error)
+      throw new Error(`系统OCR调用失败: ${error}`)
     }
   }
 }

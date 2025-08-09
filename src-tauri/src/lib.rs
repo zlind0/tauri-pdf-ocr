@@ -1,3 +1,6 @@
+mod ocr;
+use ocr::extract_text_with_system_ocr;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -5,6 +8,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .invoke_handler(tauri::generate_handler![extract_text_with_system_ocr])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
