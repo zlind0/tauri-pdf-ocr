@@ -16,7 +16,7 @@ export class OcrService {
   private static async getSettings(): Promise<OcrSettings> {
     const store = await Store.load('.settings.dat')
     const settings = await store.get<OcrSettings>('ocr_settings')
-    if (!settings || !settings.endpoint || !settings.apiKey || !settings.model) {
+    if (!settings || (settings.engine=="llm" && (!settings.endpoint || !settings.apiKey || !settings.model))) {
       throw new Error('请先配置OCR设置')
     }
     // 默认使用LLM引擎
