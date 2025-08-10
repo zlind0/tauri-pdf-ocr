@@ -15,6 +15,7 @@
     "@tauri-apps/plugin-fs": "^2.4.1",
     "@tauri-apps/plugin-http": "^2.5.1",
     "@tauri-apps/plugin-store": "^2.3.0",
+    "crypto-js": "^4.2.0",
     "pdfjs-dist": "^5.4.54",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

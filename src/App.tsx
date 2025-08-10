@@ -282,6 +282,7 @@ function App() {
               canvasRef={canvasRef}
               pageNumber={pageNumber}
               canvasRendered={canvasRendered}
+              filePath={filePath}
             />
           </SplitPane>
         </>

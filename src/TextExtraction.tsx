@@ -3,14 +3,18 @@ import { stateManager } from './stateManager'
 import { Settings } from './Settings'
 import { OcrService } from './ocrService'
 import { TranslationService } from './translationService'
+import { cacheService } from './cacheService'
+import md5 from 'crypto-js/md5'
+import { readFile } from '@tauri-apps/plugin-fs'
 
 interface TextExtractionProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
   pageNumber?: number // 添加页码属性
   canvasRendered?: boolean // 添加canvas渲染状态
+  filePath?: string | null // 添加文件路径属性用于计算MD5
 }
 
-export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextExtractionProps) {
+export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath }: TextExtractionProps) {
   const [extractedText, setExtractedText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,15 +24,27 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
   const [fontFamily, setFontFamily] = useState<string>('serif')
   const [fontSize, setFontSize] = useState<number>(18)
   const [translating, setTranslating] = useState(false)
+  const [fileMd5, setFileMd5] = useState<string | null>(null) // 存储文件MD5值
   const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
 
-  const extractText = async () => {
-    if (!canvasRef.current) return
+  const extractText = async (useCache = true) => {
+    if (!canvasRef.current || !fileMd5 || !pageNumber) return
 
     setLoading(true)
     setError(null)
     
     try {
+      // 检查缓存
+      if (useCache) {
+        const cachedText = await cacheService.getOcrText(fileMd5, pageNumber)
+        if (cachedText) {
+          lastUpdateSourceRef.current = 'ocr'
+          setExtractedText(cachedText)
+          setLoading(false)
+          return
+        }
+      }
+
       // Convert canvas to data URL
       const dataUrl = canvasRef.current.toDataURL('image/png')
       
@@ -37,6 +53,8 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
       
       // 只有在请求没有被取消的情况下才更新文本
       if (text !== '') {
+        // 保存到缓存
+        await cacheService.saveOcrText(fileMd5, pageNumber, text)
         lastUpdateSourceRef.current = 'ocr'
         setExtractedText(text)
       }
@@ -55,7 +73,8 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
     if (autoOcrEnabled && canvasRendered) {
       // triggerAutoOcr()
       console.log("ExtractText", canvasRendered, pageNumber, autoOcrEnabled)
-      extractText()
+      // 自动OCR时也使用缓存
+      extractText(true)
     }
   }, [canvasRendered, pageNumber, autoOcrEnabled])
 
@@ -64,8 +83,32 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
     if (!autoTranslateEnabled) return
     if (lastUpdateSourceRef.current !== 'ocr') return
     if (!extractedText) return
-    translateText()
+    // 自动翻译时也使用缓存
+    translateText(true)
   }, [extractedText, autoTranslateEnabled])
+
+  // 计算文件MD5值
+  useEffect(() => {
+    const calculateFileMd5 = async () => {
+      if (!filePath) {
+        setFileMd5(null)
+        return
+      }
+
+      try {
+        // 读取文件二进制数据
+        const fileData = await readFile(filePath)
+        // 计算MD5值
+        const hash = md5(fileData)
+        setFileMd5(hash.toString())
+      } catch (err) {
+        console.error('Failed to calculate file MD5:', err)
+        setFileMd5(null)
+      }
+    }
+
+    calculateFileMd5()
+  }, [filePath])
 
   // Load persisted font settings and auto flags on mount
   useEffect(() => {
@@ -96,13 +139,26 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
   const handleZoomIn = () => setFontSize(prev => Math.min(prev + 2, 60))
   const handleZoomOut = () => setFontSize(prev => Math.max(prev - 2, 10))
 
-  const translateText = async () => {
-    if (!extractedText || translating) return
+  const translateText = async (useCache = true) => {
+    if (!extractedText || translating || !fileMd5 || !pageNumber) return
     setTranslating(true)
     setError(null)
     try {
+      // 检查缓存
+      if (useCache) {
+        const cachedText = await cacheService.getTranslatedText(fileMd5, pageNumber)
+        if (cachedText) {
+          lastUpdateSourceRef.current = 'translate'
+          setExtractedText(cachedText)
+          setTranslating(false)
+          return
+        }
+      }
+
       const translated = await TranslationService.translate(extractedText, 'zh-CN')
       if (translated !== '') {
+        // 保存到缓存
+        await cacheService.saveTranslatedText(fileMd5, pageNumber, translated)
         lastUpdateSourceRef.current = 'translate'
         setExtractedText(translated)
       }
@@ -200,7 +256,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
             </button>
           </div>
           <button
-            onClick={extractText}
+            onClick={() => extractText(false)}
             disabled={loading}
             style={{
               padding: '6px 12px',
@@ -215,7 +271,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
             {loading ? 'OCR中...' : 'OCR'}
           </button>
           <button
-            onClick={translateText}
+            onClick={() => translateText(false)}
             disabled={translating || !extractedText}
             style={{
               padding: '6px 12px',
@@ -284,7 +340,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
         )}
       </div>
 
-      <Settings isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <Settings isOpen={showSettings} onClose={() => setShowSettings(false)} fileMd5={fileMd5} />
     </div>
   )
 }

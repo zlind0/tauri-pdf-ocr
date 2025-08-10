@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Store } from '@tauri-apps/plugin-store'
+import { cacheService } from './cacheService'
 
 interface OcrSettings {
   endpoint: string
@@ -17,9 +18,10 @@ interface TranslationSettings {
 interface SettingsProps {
   isOpen: boolean
   onClose: () => void
+  fileMd5?: string | null // 添加文件MD5属性用于清除特定文件缓存
 }
 
-export function Settings({ isOpen, onClose }: SettingsProps) {
+export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
   const [settings, setSettings] = useState<OcrSettings>({
     endpoint: '',
     apiKey: '',
@@ -32,6 +34,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
     model: ''
   })
   const [loading, setLoading] = useState(false)
+  const [cacheClearing, setCacheClearing] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -86,6 +89,33 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
       ...prev,
       [field]: value
     }))
+  }
+
+  const clearFileCache = async () => {
+    if (!fileMd5) return
+    setCacheClearing(true)
+    try {
+      await cacheService.clearFileCache(fileMd5)
+      alert('已清除当前文件的缓存')
+    } catch (error) {
+      console.error('Failed to clear file cache:', error)
+      alert('清除缓存失败')
+    } finally {
+      setCacheClearing(false)
+    }
+  }
+
+  const clearAllCache = async () => {
+    setCacheClearing(true)
+    try {
+      await cacheService.clearAllCache()
+      alert('已清除所有缓存')
+    } catch (error) {
+      console.error('Failed to clear all cache:', error)
+      alert('清除缓存失败')
+    } finally {
+      setCacheClearing(false)
+    }
   }
 
   if (!isOpen) return null
@@ -245,6 +275,43 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
               borderRadius: '4px'
             }}
           />
+        </div>
+
+        <hr style={{ margin: '16px 0' }} />
+        <h2 style={{ margin: '0 0 20px 0' }}>缓存管理</h2>
+
+        <div style={{ marginBottom: '20px' }}>
+          <p style={{ marginBottom: '12px' }}>管理OCR和翻译结果的缓存：</p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={clearFileCache}
+              disabled={cacheClearing || !fileMd5}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: 'white',
+                cursor: cacheClearing || !fileMd5 ? 'not-allowed' : 'pointer',
+                opacity: cacheClearing || !fileMd5 ? 0.6 : 1
+              }}
+            >
+              {cacheClearing ? '清除中...' : '清除本文件缓存'}
+            </button>
+            <button
+              onClick={clearAllCache}
+              disabled={cacheClearing}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: 'white',
+                cursor: cacheClearing ? 'not-allowed' : 'pointer',
+                opacity: cacheClearing ? 0.6 : 1
+              }}
+            >
+              {cacheClearing ? '清除中...' : '清除所有缓存'}
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
