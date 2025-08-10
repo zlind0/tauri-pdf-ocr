@@ -14,6 +14,14 @@ pub struct OcrResult {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OcrRequest {
     pub image_data: String, // base64 encoded image data
+    pub languages: Option<Vec<String>>, // OCR 识别语言
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SupportedLanguagesResult {
+    pub languages: Vec<String>,
+    pub success: bool,
+    pub error_message: Option<String>,
 }
 
 #[command]
@@ -31,6 +39,99 @@ pub async fn extract_text_with_system_ocr(request: OcrRequest) -> OcrResult {
             text: String::new(),
             success: false,
             error_message: Some("System OCR is only available on macOS".to_string()),
+        }
+    }
+}
+
+#[command]
+pub async fn get_supported_recognition_languages() -> SupportedLanguagesResult {
+    #[cfg(target_os = "macos")]
+    {
+        // 在macOS上获取支持的语言
+        get_supported_languages_macos().await
+    }
+    
+    #[cfg(not(target_os = "macos"))]
+    {
+        // 非macOS平台返回错误
+        SupportedLanguagesResult {
+            languages: vec![],
+            success: false,
+            error_message: Some("System OCR is only available on macOS".to_string()),
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+async fn get_supported_languages_macos() -> SupportedLanguagesResult {
+    // 获取OCR可执行文件路径
+    // 首先尝试从环境变量获取（由build.rs设置）
+    let ocr_executable_path = if let Ok(path) = std::env::var("OCR_EXECUTABLE_PATH") {
+        std::path::PathBuf::from(path)
+    } else {
+        // 如果环境变量不存在，尝试在当前可执行文件目录查找
+        let exe_path = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("./"));
+        let exe_dir = exe_path.parent().unwrap_or_else(|| std::path::Path::new("."));
+        exe_dir.join("ocr")
+    };
+    
+    // 检查OCR可执行文件是否存在
+    if !ocr_executable_path.exists() {
+        return SupportedLanguagesResult {
+            languages: vec![],
+            success: false,
+            error_message: Some(format!("OCR executable not found at: {:?}", ocr_executable_path)),
+        };
+    }
+    
+    // 执行OCR程序获取支持的语言
+    let output = Command::new(&ocr_executable_path)
+        .output();
+    
+    match output {
+        Ok(output) => {
+            if output.status.success() {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                let lines: Vec<&str> = output_str.lines().collect();
+                
+                // 查找语言列表的开始和结束标记
+                let start_index = lines.iter().position(|&line| line == "SUPPORTED_LANGUAGES_START");
+                let end_index = lines.iter().position(|&line| line == "SUPPORTED_LANGUAGES_END");
+                
+                if let (Some(start), Some(end)) = (start_index, end_index) {
+                    // 提取语言列表
+                    let languages: Vec<String> = lines[start+1..end]
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect();
+                    
+                    SupportedLanguagesResult {
+                        languages,
+                        success: true,
+                        error_message: None,
+                    }
+                } else {
+                    SupportedLanguagesResult {
+                        languages: vec![],
+                        success: false,
+                        error_message: Some("Failed to parse supported languages from OCR output".to_string()),
+                    }
+                }
+            } else {
+                let error = String::from_utf8_lossy(&output.stderr);
+                SupportedLanguagesResult {
+                    languages: vec![],
+                    success: false,
+                    error_message: Some(format!("Failed to get supported languages: {}", error)),
+                }
+            }
+        }
+        Err(e) => {
+            SupportedLanguagesResult {
+                languages: vec![],
+                success: false,
+                error_message: Some(format!("Failed to execute OCR to get supported languages: {}", e)),
+            }
         }
     }
 }
@@ -99,10 +200,20 @@ async fn extract_text_macos(request: OcrRequest) -> OcrResult {
         };
     }
     
+    // 构建命令参数
+    let mut cmd = Command::new(&ocr_executable_path);
+    cmd.arg(&temp_file_path);
+    
+    // 如果提供了语言选项，则添加语言参数
+    if let Some(languages) = &request.languages {
+        if !languages.is_empty() {
+            let languages_str = languages.join(",");
+            cmd.arg(languages_str);
+        }
+    }
+    
     // 执行OCR程序
-    let output = Command::new(&ocr_executable_path)
-        .arg(&temp_file_path)
-        .output();
+    let output = cmd.output();
     
     // 清理临时文件
     let _ = std::fs::remove_file(&temp_file_path);

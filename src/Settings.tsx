@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Store } from '@tauri-apps/plugin-store'
 import { cacheService } from './cacheService'
+import { OcrService } from './ocrService'
 
 interface OcrSettings {
   endpoint: string
   apiKey: string
   model: string
   engine?: 'llm' | 'system' // 添加引擎选择
+  ocrLanguages?: string[] // 添加OCR语言设置
 }
 
 interface TranslationSettings {
@@ -26,7 +28,8 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     endpoint: '',
     apiKey: '',
     model: '',
-    engine: 'llm' // 默认使用LLM引擎
+    engine: 'llm', // 默认使用LLM引擎
+    ocrLanguages: [] // 默认不选择特定语言
   })
   const [translationSettings, setTranslationSettings] = useState<TranslationSettings>({
     endpoint: '',
@@ -35,12 +38,18 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
   })
   const [loading, setLoading] = useState(false)
   const [cacheClearing, setCacheClearing] = useState(false)
+  const [supportedLanguages, setSupportedLanguages] = useState<string[]>([])
+  const [loadingLanguages, setLoadingLanguages] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       loadSettings()
+      // 如果选择了系统OCR引擎，加载支持的语言列表
+      if (settings.engine === 'system') {
+        loadSupportedLanguages()
+      }
     }
-  }, [isOpen])
+  }, [isOpen, settings.engine])
 
   const loadSettings = async () => {
     try {
@@ -51,6 +60,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
         if (!savedSettings.engine) {
           savedSettings.engine = 'llm'
         }
+        // 确保语言设置有默认值
+        if (!savedSettings.ocrLanguages) {
+          savedSettings.ocrLanguages = []
+        }
         setSettings(savedSettings)
       }
       const savedTranslationSettings = await store.get<TranslationSettings>('translation_settings')
@@ -59,6 +72,22 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
+    }
+  }
+
+  const loadSupportedLanguages = async () => {
+    // 只在macOS上加载支持的语言列表
+    if (settings.engine === 'system') {
+      setLoadingLanguages(true)
+      try {
+        const languages = await OcrService.getSupportedRecognitionLanguages()
+        setSupportedLanguages(languages)
+      } catch (error) {
+        console.error('Failed to load supported languages:', error)
+        setSupportedLanguages([])
+      } finally {
+        setLoadingLanguages(false)
+      }
     }
   }
 
@@ -77,17 +106,40 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     }
   }
 
-  const handleInputChange = (field: keyof OcrSettings, value: string) => {
+  const handleInputChange = (field: keyof OcrSettings, value: string | string[] | 'llm' | 'system') => {
     setSettings(prev => ({
       ...prev,
       [field]: value
     }))
+    
+    // 如果切换到系统OCR引擎，加载支持的语言列表
+    if (field === 'engine' && value === 'system') {
+      loadSupportedLanguages()
+    }
   }
 
   const handleTranslationInputChange = (field: keyof TranslationSettings, value: string) => {
     setTranslationSettings(prev => ({
       ...prev,
       [field]: value
+    }))
+  }
+
+  const handleLanguageChange = (language: string) => {
+    const currentLanguages = settings.ocrLanguages || []
+    let newLanguages: string[]
+    
+    if (currentLanguages.includes(language)) {
+      // 如果已选择，则移除
+      newLanguages = currentLanguages.filter(lang => lang !== language)
+    } else {
+      // 如果未选择，则添加
+      newLanguages = [...currentLanguages, language]
+    }
+    
+    setSettings(prev => ({
+      ...prev,
+      ocrLanguages: newLanguages
     }))
   }
 
@@ -138,7 +190,9 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
         padding: '24px',
         borderRadius: '8px',
         minWidth: '400px',
-        maxWidth: '500px'
+        maxWidth: '500px',
+        maxHeight: '80vh',
+        overflowY: 'auto'
       }}>
         <h2 style={{ margin: '0 0 20px 0' }}>OCR 设置</h2>
         
@@ -218,6 +272,52 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
               />
             </div>
           </>
+        )}
+
+        {/* 只有在选择系统OCR引擎时才显示语言选择 */}
+        {settings.engine === 'system' && (
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+              OCR 识别语言:
+            </label>
+            {loadingLanguages ? (
+              <p>正在加载支持的语言列表...</p>
+            ) : supportedLanguages.length > 0 ? (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(3, 1fr)', 
+                gap: '8px',
+                maxHeight: '200px',
+                overflowY: 'auto'
+              }}>
+                {supportedLanguages.map((language) => (
+                  <label 
+                    key={language} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={settings.ocrLanguages?.includes(language) || false}
+                      onChange={() => handleLanguageChange(language)}
+                      style={{ 
+                        marginRight: '8px' 
+                      }}
+                    />
+                    {language}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p>无法加载支持的语言列表</p>
+            )}
+            <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+              选择用于OCR识别的语言。如果不选择任何语言，将默认使用中文和英文。
+            </p>
+          </div>
         )}
 
         <hr style={{ margin: '16px 0' }} />

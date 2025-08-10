@@ -7,6 +7,7 @@ interface OcrSettings {
   apiKey: string
   model: string
   engine: 'llm' | 'system' // 添加引擎选择
+  ocrLanguages?: string[] // 添加OCR语言设置
 }
 
 export class OcrService {
@@ -41,7 +42,7 @@ export class OcrService {
       // 根据选择的引擎执行不同的OCR方法
       if (settings.engine === 'system') {
         // 使用系统OCR引擎 (仅macOS)
-        return await this.extractTextWithSystemOcr(imageDataUrl)
+        return await this.extractTextWithSystemOcr(imageDataUrl, settings.ocrLanguages)
       } else {
         // 使用默认的LLM引擎
         return await this.extractTextWithLlm(imageDataUrl, settings, abortController)
@@ -100,7 +101,7 @@ export class OcrService {
     return data.choices[0]?.message?.content || '无法提取文字'
   }
 
-  private static async extractTextWithSystemOcr(imageDataUrl: string): Promise<string> {
+  private static async extractTextWithSystemOcr(imageDataUrl: string, languages?: string[]): Promise<string> {
     // Convert data URL to base64 (去掉data:image/png;base64,前缀)
     const base64Data = imageDataUrl.split(',')[1]
     
@@ -109,7 +110,8 @@ export class OcrService {
       const result: { text: string; success: boolean; error_message?: string } = 
         await invoke('extract_text_with_system_ocr', {
           request: {
-            image_data: base64Data
+            image_data: base64Data,
+            languages: languages
           }
         })
       
@@ -121,6 +123,23 @@ export class OcrService {
     } catch (error) {
       console.error('系统OCR调用失败:', error)
       throw new Error(`系统OCR调用失败: ${error}`)
+    }
+  }
+  
+  // 获取系统支持的OCR语言
+  static async getSupportedRecognitionLanguages(): Promise<string[]> {
+    try {
+      const result: { languages: string[]; success: boolean; error_message?: string } = 
+        await invoke('get_supported_recognition_languages')
+      
+      if (result.success) {
+        return result.languages
+      } else {
+        throw new Error(result.error_message || '获取支持的语言列表失败')
+      }
+    } catch (error) {
+      console.error('获取支持的语言列表失败:', error)
+      throw new Error(`获取支持的语言列表失败: ${error}`)
     }
   }
 }

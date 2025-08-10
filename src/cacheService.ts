@@ -1,5 +1,4 @@
 import { Store } from '@tauri-apps/plugin-store'
-import md5 from 'crypto-js/md5'
 
 // 缓存条目类型定义
 interface CacheEntry {
