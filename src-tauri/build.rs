@@ -3,6 +3,7 @@ use std::env;
 use std::path::Path;
 
 fn main() {
+    tauri_build::build();
     // 只在 macOS 上编译 Swift OCR 程序
     if env::var("CARGO_CFG_TARGET_OS").unwrap_or_default() == "macos" {
         let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
