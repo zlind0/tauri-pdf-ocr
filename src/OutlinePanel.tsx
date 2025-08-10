@@ -123,20 +123,23 @@ export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: Out
   
   // 点击外部关闭面板
   useEffect(() => {
-
-      const handleClickOutside = (event: MouseEvent) => {
-        if (outlineRef.current && !outlineRef.current.contains(event.target as Node)) {
-          onClose()
-        }
-      }
+    const handleClickOutside = (event: MouseEvent) => {
+      // 检查是否点击了目录按钮
+      const target = event.target as HTMLElement
+      const isOutlineButton = target instanceof HTMLElement && 
+        target.tagName === 'BUTTON' && 
+        target.textContent === '目录'
       
-      // 添加事件监听器
-      document.addEventListener('mousedown', handleClickOutside)
-      
-      // 返回清理函数
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
+      if (outlineRef.current && 
+          !outlineRef.current.contains(event.target as Node) && 
+          !isOutlineButton) {
+        onClose()
       }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [onClose])
 
   return (

@@ -130,11 +130,9 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered }: TextEx
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '16px',
         paddingBottom: '8px',
-        borderBottom: '1px solid #ddd'
       }}>
-        <h3 style={{ margin: 0 }}>文字提取</h3>
+        <h3 style={{ margin: 0 }}>OCR和翻译</h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <input
