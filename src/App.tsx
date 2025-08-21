@@ -191,6 +191,41 @@ function App() {
     saveState({ pageNumber: newPageNumber })
   }, [numPages, pageNumber, saveState])
 
+  // Handle keyboard events for page navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle events when PDF is loaded
+      if (!pdfDoc) return
+
+      // Prevent default behavior for arrow keys to avoid page scrolling
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault()
+      }
+
+      // Navigate pages with arrow keys
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          goPrev()
+          break
+        case 'ArrowRight':
+        case 'ArrowDown':
+          goNext()
+          break
+        default:
+          break
+      }
+    }
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyDown)
+
+    // Clean up event listener
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [pdfDoc, goPrev, goNext])
+
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       if (!pdfDoc) return
