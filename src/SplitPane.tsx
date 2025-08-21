@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 
 interface SplitPaneProps {
@@ -18,6 +18,7 @@ export function SplitPane({
 }: SplitPaneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [currentSize, setCurrentSize] = useState(size)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -25,10 +26,9 @@ export function SplitPane({
   }, [])
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return
+    if (!isDragging || !containerRef.current) return
 
-    const container = e.currentTarget as HTMLElement
-    const rect = container.getBoundingClientRect()
+    const rect = containerRef.current.getBoundingClientRect()
     
     let newSize: number
     if (split === 'vertical') {
@@ -62,6 +62,7 @@ export function SplitPane({
 
   return (
     <div 
+      ref={containerRef}
       style={{
         display: 'flex',
         flexDirection: split === 'vertical' ? 'row' : 'column',
