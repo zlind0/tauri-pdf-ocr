@@ -30,10 +30,10 @@ const OutlineItem = ({ item, depth = 0, onItemClick, currentPage, nextPageNumber
           cursor: item.dest ? 'pointer' : 'default',
           display: 'flex',
           alignItems: 'center',
-          backgroundColor: item.dest ? (isCurrentChapter ? '#e6f0ff' : 'transparent') : '#f5f5f5',
-          color: item.dest ? (isCurrentChapter ? '#0066cc' : '#333') : '#999',
+          backgroundColor: item.dest ? (isCurrentChapter ? 'var(--highlight-bg)' : 'transparent') : 'var(--secondary-bg)',
+          color: item.dest ? (isCurrentChapter ? 'var(--highlight-text-color)' : 'var(--text-color)') : 'var(--text-color)',
           fontSize: '14px',
-          borderLeft: depth > 0 ? '2px solid #eee' : 'none',
+          borderLeft: depth > 0 ? '2px solid var(--border-color)' : 'none',
           fontWeight: isCurrentChapter ? 'bold' : (item.bold ? 'bold' : 'normal')
         }}
         onClick={() => item.dest && onItemClick(item.dest)}
@@ -48,7 +48,7 @@ const OutlineItem = ({ item, depth = 0, onItemClick, currentPage, nextPageNumber
         {item.dest && item.pageNumber && (
           <span style={{ 
             fontSize: '12px',
-            color: isCurrentChapter ? '#0066cc' : '#666',
+            color: isCurrentChapter ? 'var(--highlight-text-color)' : 'var(--text-color)',
             marginLeft: '8px'
           }}>
             {item.pageNumber}
@@ -151,19 +151,20 @@ export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: Out
         left: '16px',
         width: '400px',
         maxHeight: '80vh',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
+        backgroundColor: 'var(--panel-bg)',
+        border: '1px solid var(--border-color)',
         borderRadius: '4px',
         boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
         zIndex: 1000,
         overflowY: 'auto',
         textAlign: 'left',
-        padding: '12px'
+        padding: '12px',
+        color: 'var(--panel-text-color)'
       }}
     >
       <div style={{
         padding: '12px',
-        borderBottom: '1px solid #eee',
+        borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'

@@ -194,9 +194,10 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
       flexDirection: 'column',
       height: '100%',
       padding: '16px',
-      backgroundColor: '#f8f9fa',
-      borderLeft: '1px solid #ddd',
-      boxSizing: 'border-box'
+      backgroundColor: 'var(--secondary-bg)',
+      borderLeft: '1px solid var(--border-color)',
+      boxSizing: 'border-box',
+      color: 'var(--text-color)'
     }}>
       <div style={{
         display: 'flex',
@@ -231,9 +232,10 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
               title="字体"
               style={{
                 padding: '4px 8px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-color)',
                 borderRadius: '4px',
-                backgroundColor: 'white',
+                backgroundColor: 'var(--button-bg)',
+                color: 'var(--text-color)',
                 fontSize: '12px'
               }}
             >
@@ -246,9 +248,10 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
               title="减小字体"
               style={{
                 padding: '4px 8px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-color)',
                 borderRadius: '4px',
-                backgroundColor: 'white',
+                backgroundColor: 'var(--button-bg)',
+                color: 'var(--text-color)',
                 cursor: 'pointer',
                 fontSize: '12px'
               }}
@@ -261,9 +264,10 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
               title="放大字体"
               style={{
                 padding: '4px 8px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-color)',
                 borderRadius: '4px',
-                backgroundColor: 'white',
+                backgroundColor: 'var(--button-bg)',
+                color: 'var(--text-color)',
                 cursor: 'pointer',
                 fontSize: '12px'
               }}
@@ -278,8 +282,8 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
               padding: '6px 12px',
               border: 'none',
               borderRadius: '4px',
-              backgroundColor: '#007bff',
-              color: 'white',
+              backgroundColor: 'var(--highlight-bg)',
+              color: 'var(--highlight-text-color)',
               cursor: loading ? 'not-allowed' : 'pointer',
               fontSize: '12px'
             }}
@@ -293,8 +297,8 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
               padding: '6px 12px',
               border: 'none',
               borderRadius: '4px',
-              backgroundColor: '#28a745',
-              color: 'white',
+              backgroundColor: 'var(--highlight-bg)',
+              color: 'var(--highlight-text-color)',
               cursor: translating || !extractedText ? 'not-allowed' : 'pointer',
               fontSize: '12px'
             }}
@@ -305,9 +309,10 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             onClick={() => setShowSettings(true)}
             style={{
               padding: '6px 12px',
-              border: '1px solid #ddd',
+              border: '1px solid var(--border-color)',
               borderRadius: '4px',
-              backgroundColor: 'white',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--text-color)',
               cursor: 'pointer',
               fontSize: '12px'
             }}
@@ -319,11 +324,11 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
 
       {error && (
         <div style={{
-          color: 'red',
+          color: 'var(--text-color)',
           padding: '8px',
           marginBottom: '16px',
-          backgroundColor: '#f8d7da',
-          border: '1px solid #f5c6cb',
+          backgroundColor: 'var(--secondary-bg)',
+          border: '1px solid var(--border-color)',
           borderRadius: '4px'
         }}>
           {error}
@@ -333,24 +338,25 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
       <div style={{
         flex: 1,
         overflow: 'auto',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
+        backgroundColor: 'var(--panel-bg)',
+        border: '1px solid var(--border-color)',
         borderRadius: '4px',
         padding: '16px',
         fontFamily: fontFamily,
         fontSize: `${fontSize}px`,
         lineHeight: '1.5',
         whiteSpace: 'pre-wrap',
-        textAlign: 'left'
+        textAlign: 'left',
+        color: 'var(--panel-text-color)'
       }}>
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#666' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-color)' }}>
             正在提取文字...
           </div>
         ) : extractedText ? (
           extractedText
         ) : (
-          <div style={{ textAlign: 'left', color: '#666' }}>
+          <div style={{ textAlign: 'left', color: 'var(--text-color)' }}>
             {autoOcrEnabled ? '翻页时将自动提取文字' : '点击"OCR"按钮开始文字提取'}
           </div>
         )}

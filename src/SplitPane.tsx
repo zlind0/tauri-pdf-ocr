@@ -83,7 +83,7 @@ export function SplitPane({
         style={{
           width: split === 'vertical' ? '4px' : '100%',
           height: split === 'vertical' ? '100%' : '4px',
-          backgroundColor: isDragging ? '#007bff' : '#ddd',
+          backgroundColor: isDragging ? 'var(--highlight-bg)' : 'var(--border-color)',
           cursor: split === 'vertical' ? 'col-resize' : 'row-resize',
           position: 'relative',
           flexShrink: 0

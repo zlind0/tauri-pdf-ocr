@@ -9,8 +9,11 @@ import { OutlinePanel } from './OutlinePanel'
 import { stateManager } from './stateManager'
 import type { AppState } from './stateManager'
 import { loadPdfDocument, processPdfOutline } from './pdfUtils'
+import type { Theme } from './themeManager'
+import { getCurrentTheme, setTheme, applyTheme } from './themeManager'
+import { ThemeSelector } from './ThemeSelector'
 // Import icons
-import { FiFolder, FiChevronLeft, FiChevronRight, FiMenu, FiX } from 'react-icons/fi'
+import { FiFolder, FiChevronLeft, FiChevronRight, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi'
 
 try {
   // Preferred: let Vite load worker as module URL
@@ -42,6 +45,8 @@ function App() {
   // 目录相关状态
   const [outline, setOutline] = useState<any[] | null>(null)
   const [showOutline, setShowOutline] = useState(false)
+  // 主题状态
+  const [theme, setThemeState] = useState<Theme>(getCurrentTheme())
 
   // Load saved state on app start
   useEffect(() => {
@@ -64,6 +69,11 @@ function App() {
     }
     loadSavedState()
   }, [])
+
+  // 应用主题
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   // Save state when it changes
   const saveState = useCallback(async (updates: Partial<AppState>) => {
@@ -340,14 +350,21 @@ function App() {
         alignContent: 'center',
         alignItems: 'center',
         padding: '8px 16px',
-        borderBottom: '1px solid #ddd',
-        flexShrink: 0
+        borderBottom: '1px solid var(--border-color)',
+        flexShrink: 0,
+        backgroundColor: 'var(--primary-bg)',
+        color: 'var(--text-color)'
       }}>
         <button onClick={handleOpen} title="打开文件" style={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          padding: '6px 12px'
+          padding: '6px 12px',
+          backgroundColor: 'var(--button-bg)',
+          color: 'var(--button-text-color)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '4px',
+          cursor: 'pointer'
         }}>
           <FiFolder size={20} />
         </button>
@@ -359,8 +376,11 @@ function App() {
               alignItems: 'center', 
               justifyContent: 'center',
               padding: '6px 12px',
-              backgroundColor: showOutline ? '#007bff' : undefined,
-              color: showOutline ? 'white' : 'black'
+              backgroundColor: showOutline ? 'var(--highlight-bg)' : 'var(--button-bg)',
+              color: showOutline ? 'var(--highlight-text-color)' : 'var(--button-text-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              cursor: 'pointer'
             }}
             title={showOutline ? "关闭目录" : "打开目录"}
           >
@@ -372,7 +392,13 @@ function App() {
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          padding: '6px 12px'
+          padding: '6px 12px',
+          backgroundColor: 'var(--button-bg)',
+          color: 'var(--button-text-color)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '4px',
+          cursor: (!pdfDoc || pageNumber <= 1) ? 'not-allowed' : 'pointer',
+          opacity: (!pdfDoc || pageNumber <= 1) ? 0.5 : 1
         }}>
           <FiChevronLeft size={20} />
         </button>
@@ -380,18 +406,44 @@ function App() {
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          padding: '6px 12px'
+          padding: '6px 12px',
+          backgroundColor: 'var(--button-bg)',
+          color: 'var(--button-text-color)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '4px',
+          cursor: (!pdfDoc || pageNumber >= numPages) ? 'not-allowed' : 'pointer',
+          opacity: (!pdfDoc || pageNumber >= numPages) ? 0.5 : 1
         }}>
           <FiChevronRight size={20} />
         </button>
         {pdfDoc && (
-          <span style={{ marginLeft: 8 , minWidth: '70px', textAlign: 'center'}}>
+          <span style={{ marginLeft: 8 , minWidth: '70px', textAlign: 'center', color: 'var(--text-color)'}}>
             {pageNumber} / {numPages}
           </span>
         )}
         {filePath && <span style={{ opacity: 0.7, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filePath}</span>}
-        <div style={{ marginLeft: 'auto' }}>
-         
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={() => {
+              const nextTheme = theme === 'light' ? 'sepia' : theme === 'sepia' ? 'dark' : 'light';
+              setThemeState(nextTheme);
+              setTheme(nextTheme);
+            }}
+            title={`切换到${theme === 'light' ? '棕色' : theme === 'sepia' ? '夜间' : '白色'}模式`}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              padding: '6px 12px',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--button-text-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            {theme === 'light' ? <FiSun size={20} /> : theme === 'sepia' ? <FiSun size={20} /> : <FiMoon size={20} />}
+          </button>
         </div>
       </div>
       {renderContent()}

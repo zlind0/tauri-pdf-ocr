@@ -198,13 +198,14 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
       zIndex: 1000
     }}>
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: 'var(--panel-bg)',
         padding: '24px',
         borderRadius: '8px',
         minWidth: '400px',
         maxWidth: '500px',
         maxHeight: '80vh',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        color: 'var(--panel-text-color)'
       }}>
         <h2 style={{ margin: '0 0 20px 0' }}>OCR 设置</h2>
         
@@ -218,8 +219,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             style={{
               width: '100%',
               padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--text-color)'
             }}
           >
             <option value="llm">LLM 引擎</option>
@@ -242,8 +245,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
                 style={{
                   width: '100%',
                   padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--button-bg)',
+                  color: 'var(--text-color)'
                 }}
               />
             </div>
@@ -260,8 +265,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
                 style={{
                   width: '100%',
                   padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--button-bg)',
+                  color: 'var(--text-color)'
                 }}
               />
             </div>
@@ -278,8 +285,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
                 style={{
                   width: '100%',
                   padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--button-bg)',
+                  color: 'var(--text-color)'
                 }}
               />
             </div>
@@ -326,7 +335,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             ) : (
               <p>无法加载支持的语言列表</p>
             )}
-            <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+            <p style={{ fontSize: '12px', color: 'var(--text-color)', marginTop: '8px' }}>
               选择用于OCR识别的语言。如果不选择任何语言，将默认使用中文和英文。
             </p>
           </div>
@@ -347,8 +356,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             style={{
               width: '100%',
               padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--text-color)'
             }}
           />
         </div>
@@ -365,8 +376,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             style={{
               width: '100%',
               padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--text-color)'
             }}
           />
         </div>
@@ -383,8 +396,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             style={{
               width: '100%',
               padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--text-color)'
             }}
           />
         </div>
@@ -400,9 +415,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
               disabled={cacheClearing || !fileMd5}
               style={{
                 padding: '8px 16px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-color)',
                 borderRadius: '4px',
-                backgroundColor: 'white',
+                backgroundColor: 'var(--button-bg)',
+                color: 'var(--text-color)',
                 cursor: cacheClearing || !fileMd5 ? 'not-allowed' : 'pointer',
                 opacity: cacheClearing || !fileMd5 ? 0.6 : 1
               }}
@@ -414,9 +430,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
               disabled={cacheClearing}
               style={{
                 padding: '8px 16px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-color)',
                 borderRadius: '4px',
-                backgroundColor: 'white',
+                backgroundColor: 'var(--button-bg)',
+                color: 'var(--text-color)',
                 cursor: cacheClearing ? 'not-allowed' : 'pointer',
                 opacity: cacheClearing ? 0.6 : 1
               }}
@@ -431,9 +448,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             onClick={onClose}
             style={{
               padding: '8px 16px',
-              border: '1px solid #ddd',
+              border: '1px solid var(--border-color)',
               borderRadius: '4px',
-              backgroundColor: 'white',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--text-color)',
               cursor: 'pointer'
             }}
           >
@@ -446,8 +464,8 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
               padding: '8px 16px',
               border: 'none',
               borderRadius: '4px',
-              backgroundColor: '#007bff',
-              color: 'white',
+              backgroundColor: 'var(--highlight-bg)',
+              color: 'var(--highlight-text-color)',
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.6 : 1
             }}
