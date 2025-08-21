@@ -44,10 +44,13 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
   useEffect(() => {
     if (isOpen) {
       loadSettings()
-      // 如果选择了系统OCR引擎，加载支持的语言列表
-      if (settings.engine === 'macos-system') {
-        loadSupportedLanguages()
-      }
+    }
+  }, [isOpen])
+
+  // 当引擎设置改变时，加载相应的支持语言列表
+  useEffect(() => {
+    if (isOpen && settings.engine === 'macos-system') {
+      loadSupportedLanguages()
     }
   }, [isOpen, settings.engine])
 
@@ -65,6 +68,10 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
           savedSettings.ocrLanguages = []
         }
         setSettings(savedSettings)
+        // 如果加载的设置是系统OCR引擎，加载支持的语言列表
+        if (savedSettings.engine === 'macos-system') {
+          loadSupportedLanguages()
+        }
       }
       const savedTranslationSettings = await store.get<TranslationSettings>('translation_settings')
       if (savedTranslationSettings) {
@@ -112,9 +119,14 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
       [field]: value
     }))
     
-    // 如果切换到系统OCR引擎，加载支持的语言列表
-    if (field === 'engine' && value === 'macos-system') {
-      loadSupportedLanguages()
+    // 如果切换OCR引擎，加载对应的支持语言列表
+    if (field === 'engine') {
+      if (value === 'macos-system') {
+        loadSupportedLanguages()
+      } else {
+        // 如果切换到LLM引擎，清空语言列表相关状态
+        setSupportedLanguages([])
+      }
     }
   }
 
