@@ -147,6 +147,8 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
     if (!extractedText || translating || !fileMd5 || !pageNumber) return
     setTranslating(true)
     setError(null)
+
+    let streamingText = ''
     try {
       // 检查缓存
       if (useCache) {
@@ -159,11 +161,21 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
         }
       }
 
-      const translated = await TranslationService.translate(extractedText, 'zh-CN')
+      const translated = await TranslationService.translateStream(
+        extractedText,
+        '简体中文（中国大陆）',
+        (chunk) => {
+          // 流式更新文本
+          streamingText += chunk
+          setExtractedText(streamingText)
+        }
+      )
+
       if (translated !== '') {
         // 保存到缓存
         await cacheService.saveTranslatedText(fileMd5, pageNumber, translated)
         lastUpdateSourceRef.current = 'translate'
+        // 确保最终结果完整显示
         setExtractedText(translated)
       }
     } catch (err: any) {
