@@ -6,7 +6,7 @@ interface OcrSettings {
   endpoint: string
   apiKey: string
   model: string
-  engine: 'llm' | 'system' // 添加引擎选择
+  engine: 'llm' | 'macos-system' // 添加引擎选择
   ocrLanguages?: string[] // 添加OCR语言设置
 }
 
@@ -40,7 +40,7 @@ export class OcrService {
       const settings = await this.getSettings()
       
       // 根据选择的引擎执行不同的OCR方法
-      if (settings.engine === 'system') {
+      if (settings.engine === 'macos-system') {
         // 使用系统OCR引擎 (仅macOS)
         return await this.extractTextWithSystemOcr(imageDataUrl, settings.ocrLanguages)
       } else {

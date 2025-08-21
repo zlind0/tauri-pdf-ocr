@@ -1,1 +1,1 @@
-export { OcrService } from './ocrService';
+export { OcrService } from '../ocrService';

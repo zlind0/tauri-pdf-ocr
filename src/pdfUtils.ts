@@ -71,7 +71,7 @@ export const processPdfOutline = async (pdfDoc: import('pdfjs-dist').PDFDocument
             processedItem.pageNumber = pageNum
           } catch (e) {
             console.error('Failed to get page number for outline item:', e)
-            processedItem.pageNumber = null
+            processedItem.pageNumber = undefined
           }
         }
         

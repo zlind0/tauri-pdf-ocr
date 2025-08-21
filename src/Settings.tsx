@@ -7,7 +7,7 @@ interface OcrSettings {
   endpoint: string
   apiKey: string
   model: string
-  engine?: 'llm' | 'system' // 添加引擎选择
+  engine?: 'llm' | 'macos-system' // 添加引擎选择
   ocrLanguages?: string[] // 添加OCR语言设置
 }
 
@@ -45,7 +45,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     if (isOpen) {
       loadSettings()
       // 如果选择了系统OCR引擎，加载支持的语言列表
-      if (settings.engine === 'system') {
+      if (settings.engine === 'macos-system') {
         loadSupportedLanguages()
       }
     }
@@ -77,7 +77,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
 
   const loadSupportedLanguages = async () => {
     // 只在macOS上加载支持的语言列表
-    if (settings.engine === 'system') {
+    if (settings.engine === 'macos-system') {
       setLoadingLanguages(true)
       try {
         const languages = await OcrService.getSupportedRecognitionLanguages()
@@ -106,14 +106,14 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     }
   }
 
-  const handleInputChange = (field: keyof OcrSettings, value: string | string[] | 'llm' | 'system') => {
+  const handleInputChange = (field: keyof OcrSettings, value: string | string[] | 'llm' | 'macos-system') => {
     setSettings(prev => ({
       ...prev,
       [field]: value
     }))
     
     // 如果切换到系统OCR引擎，加载支持的语言列表
-    if (field === 'engine' && value === 'system') {
+    if (field === 'engine' && value === 'macos-system') {
       loadSupportedLanguages()
     }
   }
@@ -202,7 +202,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
           </label>
           <select
             value={settings.engine || 'llm'}
-            onChange={(e) => handleInputChange('engine', e.target.value as 'llm' | 'system')}
+            onChange={(e) => handleInputChange('engine', e.target.value as 'llm' | 'macos-system')}
             style={{
               width: '100%',
               padding: '8px',
@@ -211,12 +211,12 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             }}
           >
             <option value="llm">LLM 引擎</option>
-            <option value="system">系统 OCR (仅 macOS)</option>
+            <option value="macos-system">系统 OCR (仅 macOS)</option>
           </select>
         </div>
 
         {/* 只有在选择LLM引擎时才显示API设置 */}
-        {settings.engine !== 'system' && (
+        {settings.engine !== 'macos-system' && (
           <>
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
@@ -275,7 +275,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
         )}
 
         {/* 只有在选择系统OCR引擎时才显示语言选择 */}
-        {settings.engine === 'system' && (
+        {settings.engine === 'macos-system' && (
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
               OCR 识别语言:

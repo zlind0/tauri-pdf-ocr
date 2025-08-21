@@ -36,7 +36,7 @@ export class TranslationService {
     return settings
   }
 
-  static async translate(text: string, targetLanguage = 'zh-CN'): Promise<string> {
+  static async translate(text: string, targetLanguage = '简体中文'): Promise<string> {
     if (this.currentAbortController) {
       this.currentAbortController.abort()
     }
@@ -59,7 +59,7 @@ export class TranslationService {
           model: settings.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: text }
+            { role: 'user', content: systemPrompt+"\n===\n"+text }
           ],
           max_tokens: 4096
         }),

@@ -98,8 +98,12 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
       try {
         // 读取文件二进制数据
         const fileData = await readFile(filePath)
+        // 将Uint8Array转换为十六进制字符串
+        const hexString = Array.from(fileData)
+          .map(byte => byte.toString(16).padStart(2, '0'))
+          .join('')
         // 计算MD5值
-        const hash = md5(fileData)
+        const hash = md5(hexString)
         setFileMd5(hash.toString())
       } catch (err) {
         console.error('Failed to calculate file MD5:', err)
