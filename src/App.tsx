@@ -9,6 +9,8 @@ import { OutlinePanel } from './OutlinePanel'
 import { stateManager } from './stateManager'
 import type { AppState } from './stateManager'
 import { loadPdfDocument, processPdfOutline } from './pdfUtils'
+// Import icons
+import { FiFolder, FiChevronLeft, FiChevronRight, FiMenu, FiX } from 'react-icons/fi'
 
 try {
   // Preferred: let Vite load worker as module URL
@@ -341,30 +343,53 @@ function App() {
         borderBottom: '1px solid #ddd',
         flexShrink: 0
       }}>
-        <button onClick={handleOpen}>打开</button>
+        <button onClick={handleOpen} title="打开文件" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          padding: '6px 12px'
+        }}>
+          <FiFolder size={20} />
+        </button>
         {filePath && outline && outline.length > 0 && (
           <button 
             onClick={() => setShowOutline(!showOutline)}
             style={{
-              backgroundColor: showOutline ? '#007bff' : 'white',
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              padding: '6px 12px',
+              backgroundColor: showOutline ? '#007bff' : undefined,
               color: showOutline ? 'white' : 'black'
             }}
+            title={showOutline ? "关闭目录" : "打开目录"}
           >
-            目录
+            {showOutline ? <FiX size={20} /> : <FiMenu size={20} />}
           </button>
         )}
-        {filePath && <span style={{ opacity: 0.7 }}>{filePath}</span>}
-        <button onClick={goPrev} disabled={!pdfDoc || pageNumber <= 1}>
-          &lt;
+        
+        <button onClick={goPrev} disabled={!pdfDoc || pageNumber <= 1} title="上一页" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          padding: '6px 12px'
+        }}>
+          <FiChevronLeft size={20} />
         </button>
-        <button onClick={goNext} disabled={!pdfDoc || pageNumber >= numPages}>
-          &gt;
+        <button onClick={goNext} disabled={!pdfDoc || pageNumber >= numPages} title="下一页" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          padding: '6px 12px'
+        }}>
+          <FiChevronRight size={20} />
         </button>
         {pdfDoc && (
-          <span style={{ marginLeft: 8 , width: '70px', textAlign: 'center'}}>
+          <span style={{ marginLeft: 8 , minWidth: '70px', textAlign: 'center'}}>
             {pageNumber} / {numPages}
           </span>
         )}
+        {filePath && <span style={{ opacity: 0.7, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filePath}</span>}
         <div style={{ marginLeft: 'auto' }}>
          
         </div>

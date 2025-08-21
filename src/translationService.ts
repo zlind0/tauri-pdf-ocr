@@ -47,7 +47,7 @@ export class TranslationService {
     try {
       const settings = await this.getSettings()
 
-      const systemPrompt = `你是一个高质量的专业翻译助手。请将用户提供的文本精准翻译为${targetLanguage}，保留原意与语气，保持段落与列表结构。仅输出译文，不要思考。/nothink`
+      const systemPrompt = `你是一个高质量的专业翻译助手。请将用户提供的文本精准翻译为${targetLanguage}，保留原意与语气，保持段落与列表结构。尽可能使得译文适合普通${targetLanguage}读者的语言习惯。仅输出译文，不要思考。/nothink`
 
       const response = await fetch(`${settings.endpoint}/chat/completions`, {
         method: 'POST',
