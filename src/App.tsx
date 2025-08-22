@@ -311,10 +311,13 @@ function App() {
       setPageNumber(clampedPage)
       saveState({ pageNumber: clampedPage })
       setShowOutline(false) // 关闭目录面板
+      
+      // 标记页面正在切换，等待渲染完成
+      setCanvasRendered(false)
     } catch (e) {
       console.error('Failed to navigate to outline destination:', e)
     }
-  }, [pdfDoc, numPages, saveState])
+  }, [pdfDoc, numPages, saveState, setCanvasRendered])
 
   const renderPdfViewer = () => (
     <div 

@@ -70,13 +70,29 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   }
 
   useEffect(() => {
-    if (autoOcrEnabled && canvasRendered) {
-      // triggerAutoOcr()
-      console.log("ExtractText", canvasRendered, pageNumber, autoOcrEnabled)
-      // 自动OCR时也使用缓存
-      extractText(true)
+    if (autoOcrEnabled && canvasRendered && canvasRef.current) {
+      // 确保canvas有内容再执行OCR
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // 检查是否有非透明像素
+        let hasContent = false;
+        for (let i = 3; i < imageData.data.length; i += 4) {
+          if (imageData.data[i] > 0) { // 有非透明像素
+            hasContent = true;
+            break;
+          }
+        }
+        
+        if (hasContent) {
+          console.log("ExtractText", canvasRendered, pageNumber, autoOcrEnabled)
+          // 自动OCR时也使用缓存
+          extractText(true)
+        }
+      }
     }
-  }, [canvasRendered, pageNumber, autoOcrEnabled])
+  }, [canvasRendered, pageNumber, autoOcrEnabled, canvasRef])
 
   // 当 OCR 结果更新且开启自动翻译时，自动进行翻译
   useEffect(() => {
