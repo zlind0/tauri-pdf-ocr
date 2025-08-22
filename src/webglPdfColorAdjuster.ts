@@ -131,12 +131,16 @@ let texCoordBuffer: WebGLBuffer | null = null;
 let texture: WebGLTexture | null = null;
 let tempCanvas: HTMLCanvasElement | null = null;
 let framebuffer: WebGLFramebuffer | null = null;
+let renderbuffer: WebGLRenderbuffer | null = null;
 
 // 初始化WebGL上下文和程序
-function initWebGL(): boolean {
+function initWebGL(canvasWidth: number, canvasHeight: number): boolean {
   try {
     // 创建临时canvas用于WebGL操作
     tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvasWidth;
+    tempCanvas.height = canvasHeight;
+    
     const tempGl = tempCanvas.getContext('webgl') || tempCanvas.getContext('experimental-webgl') as WebGLRenderingContext;
     if (!tempGl) {
       return false;
@@ -145,7 +149,9 @@ function initWebGL(): boolean {
     
     // 创建帧缓冲区
     framebuffer = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    
+    // 创建渲染缓冲区
+    renderbuffer = gl.createRenderbuffer();
     
     // 创建着色器
     const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
@@ -198,27 +204,28 @@ function initWebGL(): boolean {
  * @param themeColors 主题颜色配置
  */
 export const adjustPdfColorsWebGL = (canvas: HTMLCanvasElement, theme: Theme, themeColors: ThemeColors): void => {
-  // 如果WebGL未初始化，则尝试初始化
-  if (!gl && !initWebGL()) {
-    console.warn('WebGL not supported, falling back to CPU-based color adjustment');
-    // 这里可以回退到原来的CPU实现
-    return;
+  const { width, height } = canvas;
+  if (width === 0 || height === 0) return;
+  
+  // 如果WebGL未初始化或canvas尺寸发生变化，则重新初始化
+  if (!gl || (tempCanvas && (tempCanvas.width !== width || tempCanvas.height !== height))) {
+    if (!initWebGL(width, height)) {
+      console.warn('WebGL not supported, falling back to CPU-based color adjustment');
+      // 这里可以回退到原来的CPU实现
+      return;
+    }
   }
   
   if (!gl || !program) return;
   
-  const { width, height } = canvas;
-  if (width === 0 || height === 0) return;
-  
   try {
-    // 更新临时canvas大小
-    if (tempCanvas) {
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-    }
-    
     // 绑定帧缓冲区
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    
+    // 绑定渲染缓冲区
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
     
     // 绑定纹理到帧缓冲区
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -235,7 +242,7 @@ export const adjustPdfColorsWebGL = (canvas: HTMLCanvasElement, theme: Theme, th
     
     // 清除画布
     gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
     // 使用着色器程序
     gl.useProgram(program);
@@ -284,7 +291,7 @@ export const adjustPdfColorsWebGL = (canvas: HTMLCanvasElement, theme: Theme, th
     
     // 将结果复制回原始canvas
     const ctx = canvas.getContext('2d');
-    if (ctx && tempCanvas) {
+    if (ctx) {
       // 从帧缓冲区读取像素数据
       const pixels = new Uint8Array(width * height * 4);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);

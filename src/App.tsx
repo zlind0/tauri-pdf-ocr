@@ -155,24 +155,41 @@ function App() {
         // Get device pixel ratio for high DPI displays
         const devicePixelRatio = window.devicePixelRatio || 1
         
-        // Set canvas size accounting for device pixel ratio
-        canvas.width = viewport.width * devicePixelRatio
-        canvas.height = viewport.height * devicePixelRatio
+        // Calculate new dimensions
+        const newWidth = Math.floor(viewport.width * devicePixelRatio)
+        const newHeight = Math.floor(viewport.height * devicePixelRatio)
+        
+        // Only reset canvas size if dimensions have changed significantly to avoid flickering
+        if (Math.abs(canvas.width - newWidth) > 1 || Math.abs(canvas.height - newHeight) > 1) {
+          canvas.width = newWidth
+          canvas.height = newHeight
+        }
         
         // Let CSS handle the display size
         canvas.style.width = '100%'
         canvas.style.height = '100vh'
         
+        // Create offscreen canvas for rendering to avoid flickering
+        const offscreenCanvas = document.createElement('canvas')
+        offscreenCanvas.width = canvas.width
+        offscreenCanvas.height = canvas.height
+        const offscreenCtx = offscreenCanvas.getContext('2d')!
+        
         // Scale the context to match the device pixel ratio
-        ctx.scale(devicePixelRatio, devicePixelRatio)
+        offscreenCtx.scale(devicePixelRatio, devicePixelRatio)
         
         // Store the render task and wait for it to complete
-        renderTaskRef.current = page.render({ canvasContext: ctx, viewport, canvas })
+        renderTaskRef.current = page.render({ canvasContext: offscreenCtx, viewport, canvas: offscreenCanvas })
         await renderTaskRef.current.promise
         renderTaskRef.current = null
         
         // 调整PDF颜色以适配当前主题（优先使用WebGL版本）
-        adjustPdfColorsWebGL(canvas, theme, themes[theme])
+        // TODO: webgl不可用需要fallback到cpu
+        adjustPdfColorsWebGL(offscreenCanvas, theme, themes[theme])
+        
+        // Copy the processed image from offscreen canvas to the visible canvas
+        // ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(offscreenCanvas, 0, 0)
         
         // Mark canvas as rendered
         setCanvasRendered(true)
