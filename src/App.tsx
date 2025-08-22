@@ -10,10 +10,11 @@ import { stateManager } from './stateManager'
 import type { AppState } from './stateManager'
 import { loadPdfDocument, processPdfOutline } from './pdfUtils'
 import type { Theme } from './themeManager'
-import { getCurrentTheme, setTheme, applyTheme } from './themeManager'
-import { ThemeSelector } from './ThemeSelector'
+import { getCurrentTheme, setTheme, applyTheme, themes } from './themeManager'
 // Import icons
 import { FiFolder, FiChevronLeft, FiChevronRight, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi'
+// Import color adjuster
+import { adjustPdfColors } from './pdfColorAdjuster'
 
 try {
   // Preferred: let Vite load worker as module URL
@@ -73,7 +74,7 @@ function App() {
   // 应用主题
   useEffect(() => {
     applyTheme(theme)
-  }, [theme])
+  }, [theme, pdfDoc])
 
   // Save state when it changes
   const saveState = useCallback(async (updates: Partial<AppState>) => {
@@ -168,6 +169,9 @@ function App() {
         await renderTaskRef.current.promise
         renderTaskRef.current = null
         
+        // 调整PDF颜色以适配当前主题
+        adjustPdfColors(canvas, theme, themes[theme])
+        
         // Mark canvas as rendered
         setCanvasRendered(true)
       } catch (e: any) {
@@ -187,7 +191,7 @@ function App() {
         renderTaskRef.current = null
       }
     }
-  }, [pdfDoc, pageNumber, scale])
+  }, [pdfDoc, pageNumber, scale, theme])
 
   const goPrev = useCallback(() => {
     setCanvasRendered(false)
