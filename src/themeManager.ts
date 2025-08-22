@@ -40,16 +40,16 @@ export const themes: Record<Theme, ThemeColors> = {
     highlightTextColor: '#0066cc'
   },
   sepia: {
-    primaryBg: '#f4f0e1',
-    secondaryBg: '#e8e2d1',
+    primaryBg: 'rgb(249, 243, 233)',
+    secondaryBg: 'rgb(249, 243, 233)',
     textColor: '#5b4636',
     borderColor: '#d1c7b5',
-    buttonBg: '#f4f0e1',
+    buttonBg: 'rgba(255, 250, 242, 1)',
     buttonHoverBg: '#e8e2d1',
     buttonTextColor: '#5b4636',
-    panelBg: '#f4f0e1',
+    panelBg: 'rgb(249, 243, 233)',
     panelTextColor: '#5b4636',
-    highlightBg: '#d9cfc0',
+    highlightBg: '#fdfdf3ff',
     highlightTextColor: '#4a3a2d'
   },
   dark: {
