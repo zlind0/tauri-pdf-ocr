@@ -15,6 +15,8 @@ import { getCurrentTheme, setTheme, applyTheme, themes } from './themeManager'
 import { FiFolder, FiChevronLeft, FiChevronRight, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi'
 // Import color adjuster
 import { adjustPdfColors } from './pdfColorAdjuster'
+// Import WebGL color adjuster
+import { adjustPdfColorsWebGL } from './webglPdfColorAdjuster'
 
 try {
   // Preferred: let Vite load worker as module URL
@@ -169,8 +171,8 @@ function App() {
         await renderTaskRef.current.promise
         renderTaskRef.current = null
         
-        // 调整PDF颜色以适配当前主题
-        adjustPdfColors(canvas, theme, themes[theme])
+        // 调整PDF颜色以适配当前主题（优先使用WebGL版本）
+        adjustPdfColorsWebGL(canvas, theme, themes[theme])
         
         // Mark canvas as rendered
         setCanvasRendered(true)
@@ -305,6 +307,7 @@ function App() {
       <canvas 
         ref={canvasRef} 
         className="pdf-canvas"
+        id='pdf-canvas'
       />
     </div>
   )
