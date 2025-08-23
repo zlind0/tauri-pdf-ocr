@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import './app-compact.css'
 
 interface ThemeSelectorProps {
   currentTheme: 'light' | 'sepia' | 'dark'
@@ -38,17 +39,7 @@ export function ThemeSelector({ currentTheme, onThemeChange }: ThemeSelectorProp
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '6px 12px',
-          backgroundColor: 'var(--button-bg)',
-          color: 'var(--button-text-color)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '4px',
-          cursor: 'pointer'
-        }}
+        className="compact-btn"
         title="切换主题"
       >
         {currentTheme === 'light' ? '☀️' : currentTheme === 'sepia' ? '📖' : '🌙'}

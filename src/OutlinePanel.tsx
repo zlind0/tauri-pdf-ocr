@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import './app-compact.css'
 
 interface OutlineItemProps {
   item: any
@@ -172,6 +173,7 @@ export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: Out
         <h3 style={{ margin: 0, fontSize: '16px' }}>目录</h3>
         <button 
           onClick={onClose}
+          className="compact-btn"
           style={{
             background: 'none',
             border: 'none',

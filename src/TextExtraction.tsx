@@ -6,6 +6,7 @@ import { TranslationService } from './translationService'
 import { cacheService } from './cacheService'
 import md5 from 'crypto-js/md5'
 import { readFile } from '@tauri-apps/plugin-fs'
+import './app-compact.css'
 
 interface TextExtractionProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
@@ -209,35 +210,28 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      padding: '16px',
+      padding: '8px',
       backgroundColor: 'var(--secondary-bg)',
       borderLeft: '1px solid var(--border-color)',
       boxSizing: 'border-box',
       color: 'var(--text-color)'
     }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: '8px',
-      }}>
-        <h3 style={{ margin: 0 }}>OCR和翻译</h3>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', marginBottom:'8px' }}>
+          <label className="compact-checkbox-label">
             <input
               type="checkbox"
               checked={autoOcrEnabled}
               onChange={(e) => setAutoOcrEnabled(e.target.checked)}
-              style={{ margin: 0 }}
+              className="compact-checkbox"
             />
             自动OCR
           </label>
-          <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <label className="compact-checkbox-label">
             <input
               type="checkbox"
               checked={autoTranslateEnabled}
               onChange={(e) => setAutoTranslateEnabled(e.target.checked)}
-              style={{ margin: 0 }}
+              className="compact-checkbox"
             />
             自动翻译
           </label>
@@ -246,14 +240,8 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
               value={fontFamily}
               onChange={(e) => setFontFamily(e.target.value)}
               title="字体"
-              style={{
-                padding: '4px 8px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-                backgroundColor: 'var(--button-bg)',
-                color: 'var(--text-color)',
-                fontSize: '12px'
-              }}
+              className="compact-select"
+              style={{width: "90px"}}
             >
               <option value="serif">Serif</option>
               <option value="sans-serif">Sans-serif</option>
@@ -262,15 +250,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             <button
               onClick={handleZoomOut}
               title="减小字体"
-              style={{
-                padding: '4px 8px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-                backgroundColor: 'var(--button-bg)',
-                color: 'var(--text-color)',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
+              className="compact-btn"
             >
               A-
             </button>
@@ -278,15 +258,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             <button
               onClick={handleZoomIn}
               title="放大字体"
-              style={{
-                padding: '4px 8px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-                backgroundColor: 'var(--button-bg)',
-                color: 'var(--text-color)',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
+              className="compact-btn"
             >
               A+
             </button>
@@ -294,49 +266,26 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
           <button
             onClick={() => extractText(false)}
             disabled={loading}
-            style={{
-              padding: '6px 12px',
-              border: 'none',
-              borderRadius: '4px',
-              backgroundColor: 'var(--highlight-bg)',
-              color: 'var(--highlight-text-color)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '12px'
-            }}
+            className="compact-btn"
+            style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}
           >
             {loading ? 'OCR中...' : 'OCR'}
           </button>
           <button
             onClick={() => translateText(false)}
             disabled={translating || !extractedText}
-            style={{
-              padding: '6px 12px',
-              border: 'none',
-              borderRadius: '4px',
-              backgroundColor: 'var(--highlight-bg)',
-              color: 'var(--highlight-text-color)',
-              cursor: translating || !extractedText ? 'not-allowed' : 'pointer',
-              fontSize: '12px'
-            }}
+            className="compact-btn"
+            style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}
           >
             {translating ? '翻译中...' : '翻译'}
           </button>
           <button
             onClick={() => setShowSettings(true)}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              backgroundColor: 'var(--button-bg)',
-              color: 'var(--text-color)',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
+            className="compact-btn"
           >
             设置
           </button>
         </div>
-      </div>
 
       {error && (
         <div style={{

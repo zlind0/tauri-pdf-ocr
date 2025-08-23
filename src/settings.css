@@ -1,0 +1,217 @@
+/* 设置页面的样式 */
+.settings-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.settings-container {
+  background-color: var(--panel-bg);
+  padding: 24px;
+  border-radius: 8px;
+  min-width: 400px;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
+  color: var(--panel-text-color);
+}
+
+.settings-header {
+  margin: 0 0 20px 0;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+}
+
+.settings-section-title {
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Label和Input的行内布局 */
+.form-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: bold;
+  min-width: 120px;
+  margin-right: 12px;
+  text-align: right;
+}
+
+.form-group input,
+.form-group select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px;
+}
+
+.form-group input[type="password"] {
+  font-family: monospace;
+  background-image: none;
+  padding-right: 12px;
+  cursor: text;
+}
+
+.form-group input[type="text"] {
+  background-image: none;
+  padding-right: 12px;
+  cursor: text;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--highlight-bg);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+/* 统一下拉菜单样式 */
+.form-group select {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.form-group select:hover {
+  background-color: var(--button-hover-bg);
+}
+
+/* 多选框组 */
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background-color: var(--button-bg);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  transition: all 0.2s ease;
+}
+
+.checkbox-item input[type="checkbox"]:checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid var(--highlight-text-color);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+.checkbox-item input[type="checkbox"]:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.checkbox-item input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+/* 缓存管理按钮 */
+.cache-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  border: none;
+  background-color: var(--highlight-bg);
+  color: var(--highlight-text-color);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* 分隔线 */
+.settings-divider {
+  margin: 16px 0;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+}
+
+/* 语言选择说明 */
+.language-note {
+  font-size: 12px;
+  color: var(--text-color);
+  margin-top: 8px;
+}
+
+/* 加载状态 */
+.loading-text {
+  font-style: italic;
+  color: var(--text-color);
+}

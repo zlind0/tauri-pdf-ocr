@@ -1,0 +1,136 @@
+/* App组件的紧凑样式 */
+.app-header {
+  display: flex;
+  gap: 6px;
+  align-content: center;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background-color: var(--primary-bg);
+  color: var(--text-color);
+}
+
+.compact-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  background-color: var(--button-bg);
+  color: var(--button-text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  transition: all 0.2s ease;
+}
+
+.compact-btn:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.compact-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.compact-btn.active {
+  background-color: var(--highlight-bg);
+  color: var(--highlight-text-color);
+}
+
+.compact-select {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+  padding-right: 28px;
+  transition: all 0.2s ease;
+}
+
+.compact-select:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.compact-select:focus {
+  outline: none;
+  border-color: var(--highlight-bg);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.compact-checkbox-label {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.compact-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background-color: var(--button-bg);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.compact-checkbox:checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid var(--highlight-text-color);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+.compact-checkbox:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.compact-checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.page-number {
+  margin-left: 8px;
+  min-width: 70px;
+  text-align: center;
+  color: var(--text-color);
+}
+
+.file-path {
+  opacity: 0.7;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0 8px;
+}
+
+.theme-buttons {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}

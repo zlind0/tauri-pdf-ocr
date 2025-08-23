@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Store } from '@tauri-apps/plugin-store'
 import { cacheService } from './cacheService'
 import { OcrService } from './ocrService'
+import './settings.css'
 
 interface OcrSettings {
   endpoint: string
@@ -185,290 +186,154 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
   if (!isOpen) return null
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: 'var(--panel-bg)',
-        padding: '24px',
-        borderRadius: '8px',
-        minWidth: '400px',
-        maxWidth: '500px',
-        maxHeight: '80vh',
-        overflowY: 'auto',
-        color: 'var(--panel-text-color)'
-      }}>
-        <h2 style={{ margin: '0 0 20px 0' }}>OCR 设置</h2>
+    <div className="settings-modal">
+      <div className="settings-container">
+        <h2 className="settings-header">OCR 设置</h2>
         
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            OCR 引擎:
-          </label>
-          <select
-            value={settings.engine || 'llm'}
-            onChange={(e) => handleInputChange('engine', e.target.value as 'llm' | 'macos-system')}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              backgroundColor: 'var(--button-bg)',
-              color: 'var(--text-color)'
-            }}
-          >
-            <option value="llm">LLM 引擎</option>
-            <option value="macos-system">系统 OCR (仅 macOS)</option>
-          </select>
-        </div>
-
-        {/* 只有在选择LLM引擎时才显示API设置 */}
-        {settings.engine !== 'macos-system' && (
-          <>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-                API Endpoint:
-              </label>
-              <input
-                type="text"
-                value={settings.endpoint}
-                onChange={(e) => handleInputChange('endpoint', e.target.value)}
-                placeholder="https://api.openai.com/v1"
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--button-bg)',
-                  color: 'var(--text-color)'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-                API Key:
-              </label>
-              <input
-                type="password"
-                value={settings.apiKey}
-                onChange={(e) => handleInputChange('apiKey', e.target.value)}
-                placeholder="sk-..."
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--button-bg)',
-                  color: 'var(--text-color)'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-                Model:
-              </label>
-              <input
-                type="text"
-                value={settings.model}
-                onChange={(e) => handleInputChange('model', e.target.value)}
-                placeholder="gpt-4-vision-preview"
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--button-bg)',
-                  color: 'var(--text-color)'
-                }}
-              />
-            </div>
-          </>
-        )}
-
-        {/* 只有在选择系统OCR引擎时才显示语言选择 */}
-        {settings.engine === 'macos-system' && (
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-              OCR 识别语言:
-            </label>
-            {loadingLanguages ? (
-              <p>正在加载支持的语言列表...</p>
-            ) : supportedLanguages.length > 0 ? (
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(3, 1fr)', 
-                gap: '8px',
-                maxHeight: '200px',
-                overflowY: 'auto'
-              }}>
-                {supportedLanguages.map((language) => (
-                  <label 
-                    key={language} 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      fontSize: '14px'
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={settings.ocrLanguages?.includes(language) || false}
-                      onChange={() => handleLanguageChange(language)}
-                      style={{ 
-                        marginRight: '8px' 
-                      }}
-                    />
-                    {language}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p>无法加载支持的语言列表</p>
-            )}
-            <p style={{ fontSize: '12px', color: 'var(--text-color)', marginTop: '8px' }}>
-              选择用于OCR识别的语言。如果不选择任何语言，将默认使用中文和英文。
-            </p>
+        <div className="settings-section">
+          <div className="form-group">
+            <label>OCR 引擎:</label>
+            <select
+              value={settings.engine || 'llm'}
+              onChange={(e) => handleInputChange('engine', e.target.value as 'llm' | 'macos-system')}
+            >
+              <option value="llm">LLM 引擎</option>
+              <option value="macos-system">系统 OCR (仅 macOS)</option>
+            </select>
           </div>
-        )}
 
-        <hr style={{ margin: '16px 0' }} />
-        <h2 style={{ margin: '0 0 20px 0' }}>翻译 设置</h2>
+          {/* 只有在选择LLM引擎时才显示API设置 */}
+          {settings.engine !== 'macos-system' && (
+            <>
+              <div className="form-group">
+                <label>Endpoint:</label>
+                <input
+                  type="text"
+                  value={settings.endpoint}
+                  onChange={(e) => handleInputChange('endpoint', e.target.value)}
+                  placeholder="https://api.openai.com/v1"
+                />
+              </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            API Endpoint:
-          </label>
-          <input
-            type="text"
-            value={translationSettings.endpoint}
-            onChange={(e) => handleTranslationInputChange('endpoint', e.target.value)}
-            placeholder="https://api.openai.com/v1"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              backgroundColor: 'var(--button-bg)',
-              color: 'var(--text-color)'
-            }}
-          />
+              <div className="form-group">
+                <label>API Key:</label>
+                <input
+                  type="password"
+                  value={settings.apiKey}
+                  onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                  placeholder="sk-..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Model:</label>
+                <input
+                  type="text"
+                  value={settings.model}
+                  onChange={(e) => handleInputChange('model', e.target.value)}
+                  placeholder="gpt-4-vision-preview"
+                />
+              </div>
+            </>
+          )}
+
+          {/* 只有在选择系统OCR引擎时才显示语言选择 */}
+          {settings.engine === 'macos-system' && (
+            <div className="settings-section">
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                OCR 识别语言:
+              </label>
+              {loadingLanguages ? (
+                <p className="loading-text">正在加载支持的语言列表...</p>
+              ) : supportedLanguages.length > 0 ? (
+                <div className="checkbox-group">
+                  {supportedLanguages.map((language) => (
+                    <label key={language} className="checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={settings.ocrLanguages?.includes(language) || false}
+                        onChange={() => handleLanguageChange(language)}
+                      />
+                      {language}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p>无法加载支持的语言列表</p>
+              )}
+              <p className="language-note">
+                选择用于OCR识别的语言。如果不选择任何语言，将默认使用中文和英文。
+              </p>
+            </div>
+          )}
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            API Key:
-          </label>
-          <input
-            type="password"
-            value={translationSettings.apiKey}
-            onChange={(e) => handleTranslationInputChange('apiKey', e.target.value)}
-            placeholder="sk-..."
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              backgroundColor: 'var(--button-bg)',
-              color: 'var(--text-color)'
-            }}
-          />
+        <hr className="settings-divider" />
+        <h2 className="settings-header">翻译 设置</h2>
+        
+        <div className="settings-section">
+          <div className="form-group">
+            <label>Endpoint:</label>
+            <input
+              type="text"
+              value={translationSettings.endpoint}
+              onChange={(e) => handleTranslationInputChange('endpoint', e.target.value)}
+              placeholder="https://api.openai.com/v1"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>API Key:</label>
+            <input
+              type="password"
+              value={translationSettings.apiKey}
+              onChange={(e) => handleTranslationInputChange('apiKey', e.target.value)}
+              placeholder="sk-..."
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Model:</label>
+            <input
+              type="text"
+              value={translationSettings.model}
+              onChange={(e) => handleTranslationInputChange('model', e.target.value)}
+              placeholder="gpt-4o-mini"
+            />
+          </div>
         </div>
 
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            Model:
-          </label>
-          <input
-            type="text"
-            value={translationSettings.model}
-            onChange={(e) => handleTranslationInputChange('model', e.target.value)}
-            placeholder="gpt-4o-mini"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              backgroundColor: 'var(--button-bg)',
-              color: 'var(--text-color)'
-            }}
-          />
-        </div>
-
-        <hr style={{ margin: '16px 0' }} />
-        <h2 style={{ margin: '0 0 20px 0' }}>缓存管理</h2>
-
-        <div style={{ marginBottom: '20px' }}>
+        <hr className="settings-divider" />
+        <h2 className="settings-header">缓存管理</h2>
+        
+        <div className="settings-section">
           <p style={{ marginBottom: '12px' }}>管理OCR和翻译结果的缓存：</p>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="cache-buttons">
             <button
+              className="btn"
               onClick={clearFileCache}
               disabled={cacheClearing || !fileMd5}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-                backgroundColor: 'var(--button-bg)',
-                color: 'var(--text-color)',
-                cursor: cacheClearing || !fileMd5 ? 'not-allowed' : 'pointer',
-                opacity: cacheClearing || !fileMd5 ? 0.6 : 1
-              }}
             >
               {cacheClearing ? '清除中...' : '清除本文件缓存'}
             </button>
             <button
+              className="btn"
               onClick={clearAllCache}
               disabled={cacheClearing}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-                backgroundColor: 'var(--button-bg)',
-                color: 'var(--text-color)',
-                cursor: cacheClearing ? 'not-allowed' : 'pointer',
-                opacity: cacheClearing ? 0.6 : 1
-              }}
             >
               {cacheClearing ? '清除中...' : '清除所有缓存'}
             </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              backgroundColor: 'var(--button-bg)',
-              color: 'var(--text-color)',
-              cursor: 'pointer'
-            }}
-          >
+        <div className="action-buttons">
+          <button className="btn" onClick={onClose}>
             取消
           </button>
-          <button
+          <button 
+            className="btn btn-primary" 
             onClick={saveSettings}
             disabled={loading}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: '4px',
-              backgroundColor: 'var(--highlight-bg)',
-              color: 'var(--highlight-text-color)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1
-            }}
           >
             {loading ? '保存中...' : '保存'}
           </button>
