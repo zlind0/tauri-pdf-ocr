@@ -1,5 +1,6 @@
 import { readFile } from '@tauri-apps/plugin-fs'
 import { getDocument } from 'pdfjs-dist'
+import md5 from 'crypto-js/md5'
 
 export interface ProcessedOutlineItem {
   title: string
@@ -11,15 +12,22 @@ export interface ProcessedOutlineItem {
 }
 
 /**
- * 加载PDF文档
+ * 加载PDF文档并计算MD5
  * @param filePath PDF文件路径
- * @returns PDF文档代理对象和处理后的目录数据
+ * @returns PDF文档代理对象和文件MD5值
  */
 export const loadPdfDocument = async (filePath: string) => {
   try {
     const data = await readFile(filePath)
+    
+    // 计算文件MD5值
+    const hexString = Array.from(data)
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('')
+    const fileMd5 = md5(hexString).toString()
+    
     const pdfDoc = await getDocument({ data }).promise
-    return pdfDoc
+    return { pdfDoc, fileMd5 }
   } catch (error) {
     throw new Error(`Failed to load PDF: ${error}`)
   }

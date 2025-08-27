@@ -38,6 +38,7 @@ function App() {
   const [_, setLoading] = useState(false)
   const [__, setError] = useState<string | null>(null)
   const [pdfDoc, setPdfDoc] = useState<import('pdfjs-dist').PDFDocumentProxy | null>(null)
+  const [fileMd5, setFileMd5] = useState<string | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [numPages, setNumPages] = useState(0)
   const [scale] = useState(1.5)
@@ -109,8 +110,9 @@ function App() {
       setLoading(true)
       setError(null)
       try {
-        const loaded = await loadPdfDocument(filePath)
+        const { pdfDoc: loaded, fileMd5: md5 } = await loadPdfDocument(filePath)
         setPdfDoc(loaded)
+        setFileMd5(md5)
         setNumPages(loaded.numPages)
         // 获取并处理PDF目录
         const processedOutline = await processPdfOutline(loaded)
@@ -124,6 +126,7 @@ function App() {
       } catch (e: any) {
         setError(e?.message ?? String(e))
         setPdfDoc(null)
+        setFileMd5(null)
         setNumPages(0)
         setOutline(null)
       } finally {
@@ -358,6 +361,7 @@ function App() {
               pageNumber={pageNumber}
               canvasRendered={canvasRendered}
               filePath={filePath}
+              fileMd5={fileMd5}
             />
           </SplitPane>
         </>

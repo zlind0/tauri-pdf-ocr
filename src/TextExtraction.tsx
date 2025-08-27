@@ -13,9 +13,10 @@ interface TextExtractionProps {
   pageNumber?: number // 添加页码属性
   canvasRendered?: boolean // 添加canvas渲染状态
   filePath?: string | null // 添加文件路径属性用于计算MD5
+  fileMd5?: string | null // 添加文件MD5属性
 }
 
-export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath }: TextExtractionProps) {
+export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath, fileMd5 }: TextExtractionProps) {
   const [extractedText, setExtractedText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +26,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   const [fontFamily, setFontFamily] = useState<string>('serif')
   const [fontSize, setFontSize] = useState<number>(18)
   const [translating, setTranslating] = useState(false)
-  const [fileMd5, setFileMd5] = useState<string | null>(null) // 存储文件MD5值
+  // fileMd5 现在通过 props 传入，不再需要本地状态
   const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
 
   const extractText = async (useCache = true) => {
@@ -104,32 +105,6 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
     translateText(true)
   }, [extractedText, autoTranslateEnabled])
 
-  // 计算文件MD5值
-  useEffect(() => {
-    const calculateFileMd5 = async () => {
-      if (!filePath) {
-        setFileMd5(null)
-        return
-      }
-
-      try {
-        // 读取文件二进制数据
-        const fileData = await readFile(filePath)
-        // 将Uint8Array转换为十六进制字符串
-        const hexString = Array.from(fileData)
-          .map(byte => byte.toString(16).padStart(2, '0'))
-          .join('')
-        // 计算MD5值
-        const hash = md5(hexString)
-        setFileMd5(hash.toString())
-      } catch (err) {
-        console.error('Failed to calculate file MD5:', err)
-        setFileMd5(null)
-      }
-    }
-
-    calculateFileMd5()
-  }, [filePath])
 
   // Load persisted font settings and auto flags on mount
   useEffect(() => {
