@@ -114,6 +114,7 @@ class CacheService {
     try {
       const key = this.generateKey(fileMd5, pageNumber)
       const entry = await this.store.get<CacheEntry>(key)
+      console.log("Cache: getOcrText", key, entry?.ocrText)
       return entry?.ocrText || null
     } catch (error) {
       console.error('Failed to get OCR text from cache:', error)
@@ -128,6 +129,7 @@ class CacheService {
     try {
       const key = this.generateKey(fileMd5, pageNumber)
       const entry = await this.store.get<CacheEntry>(key)
+      console.log("Cache: getTranslatedText", key, entry?.translatedText)
       return entry?.translatedText || null
     } catch (error) {
       console.error('Failed to get translated text from cache:', error)
@@ -176,6 +178,47 @@ class CacheService {
       await this.enforceSizeLimit()
     } catch (error) {
       console.error('Failed to save translated text to cache:', error)
+    }
+  }
+
+  async clearTranslatedCache(fileMd5: string, pageNumber: number): Promise<void> {
+    await this.initialize()
+    if (!this.store) return
+
+    try {
+      const key = this.generateKey(fileMd5, pageNumber)
+      const existingEntry = await this.store.get<CacheEntry>(key)
+      
+      if (existingEntry) {
+        // 如果存在OCR文本，只删除翻译部分并更新条目
+        if (existingEntry.ocrText) {
+          const updatedEntry: CacheEntry = {
+            ocrText: existingEntry.ocrText,
+            timestamp: Date.now()
+          }
+          await this.store.set(key, updatedEntry)
+        } else {
+          // 如果没有OCR文本，删除整个条目
+          await this.store.delete(key)
+        }
+        await this.store.save()
+      }
+    } catch (error) {
+      console.error('Failed to clear translated cache:', error)
+    }
+  }
+
+  async clearPageCache(fileMd5: string, pageNumber: number): Promise<void> {
+    await this.initialize()
+    if (!this.store) return
+
+    try {
+      const key = this.generateKey(fileMd5, pageNumber)
+      // 直接删除整个缓存条目，不管其中包含什么内容
+      await this.store.delete(key)
+      await this.store.save()
+    } catch (error) {
+      console.error('Failed to clear page cache:', error)
     }
   }
 

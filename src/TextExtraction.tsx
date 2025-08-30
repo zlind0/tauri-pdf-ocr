@@ -4,8 +4,6 @@ import { Settings } from './Settings'
 import { OcrService } from './ocrService'
 import { TranslationService } from './translationService'
 import { cacheService } from './cacheService'
-import md5 from 'crypto-js/md5'
-import { readFile } from '@tauri-apps/plugin-fs'
 import './app-compact.css'
 
 interface TextExtractionProps {
@@ -14,9 +12,11 @@ interface TextExtractionProps {
   canvasRendered?: boolean // 添加canvas渲染状态
   filePath?: string | null // 添加文件路径属性用于计算MD5
   fileMd5?: string | null // 添加文件MD5属性
+  pdfDoc?: import('pdfjs-dist').PDFDocumentProxy | null // 添加PDF文档属性
+  numPages?: number // 添加总页数属性
 }
 
-export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath, fileMd5 }: TextExtractionProps) {
+export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath, fileMd5, pdfDoc, numPages }: TextExtractionProps) {
   const [extractedText, setExtractedText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,32 +26,32 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   const [fontFamily, setFontFamily] = useState<string>('serif')
   const [fontSize, setFontSize] = useState<number>(18)
   const [translating, setTranslating] = useState(false)
+  const [translatingResult, setTranslatingResult] = useState<string>('')
+  const [translatingPage, setTranslatingPage] = useState<number>(-1) // -1 represents that there's no ongoing translation
   // fileMd5 现在通过 props 传入，不再需要本地状态
   const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
 
-  const extractText = async (useCache = true) => {
-    if (!canvasRef.current || !fileMd5 || !pageNumber) return
+  const extractText = async (useCache = true, canvasDataUrl: string): Promise<string> => {
+    if (!canvasRef.current || !fileMd5 || !pageNumber) return ''
 
     setLoading(true)
     setError(null)
     
     try {
-      // 检查缓存
       if (useCache) {
         const cachedText = await cacheService.getOcrText(fileMd5, pageNumber)
         if (cachedText) {
           lastUpdateSourceRef.current = 'ocr'
           setExtractedText(cachedText)
           setLoading(false)
-          return
+          return cachedText
         }
+      } else {
+        await cacheService.clearPageCache(fileMd5, pageNumber)
       }
-
-      // Convert canvas to data URL
-      const dataUrl = canvasRef.current.toDataURL('image/png')
       
       // Extract text using OCR
-      const text = await OcrService.extractTextFromImage(dataUrl)
+      const text = await OcrService.extractTextFromImage(canvasDataUrl)
       
       // 只有在请求没有被取消的情况下才更新文本
       if (text !== '') {
@@ -61,15 +61,71 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
         setExtractedText(text)
       }
       setLoading(false)
+      return text
     } catch (err: any) {
       // 只有在不是取消请求的情况下才显示错误
-      if (err !== 'Request canceled') {
+      if (err !== 'Request cancelled') {
         console.log(err)
         setError(err.message || '文字提取失败')
         setLoading(false)
       }
+      return ''
     } 
   }
+
+  const translateText = async (useCache = true, inputText: string, pageNumber: number) : Promise<string> => {
+    if (!inputText || !fileMd5 || !pageNumber) return ''
+    setTranslating(true)
+    setError(null)
+
+    let streamingText = ''
+    try {
+      // 检查缓存
+      if (useCache) {
+        const cachedText = await cacheService.getTranslatedText(fileMd5, pageNumber)
+        if (cachedText) {
+          lastUpdateSourceRef.current = 'translate'
+          setTranslating(false)
+          setExtractedText(cachedText)
+          return cachedText
+        }
+      }else {
+        await cacheService.clearTranslatedCache(fileMd5, pageNumber)
+      }
+      const translated = await TranslationService.translateStream(
+        inputText,
+        '简体中文（中国大陆）',
+        (chunk) => {
+            setTranslatingPage(pageNumber)
+            streamingText += chunk
+            setTranslatingResult(streamingText)
+        }
+      )
+
+      if (translated !== '') {
+        // 保存到缓存
+        await cacheService.saveTranslatedText(fileMd5, pageNumber, translated)
+        lastUpdateSourceRef.current = 'translate'
+        // 确保最终结果完整显示
+        // setExtractedText(translated)
+        // streamingText = translated
+      }
+      setTranslating(false)
+    } catch (err: any) {
+      if (err !== 'Request cancelled') {
+        console.log(err)
+        setError(err.message || '翻译失败')
+      }
+    } finally {
+      return streamingText
+    }
+  }
+
+  useEffect(()=>{
+    if (!translating && autoTranslateEnabled){
+      prefetchNextPage()
+    }
+  }, [translating, autoTranslateEnabled])
 
   useEffect(() => {
     if (autoOcrEnabled && canvasRendered && canvasRef.current) {
@@ -88,23 +144,18 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
         }
         
         if (hasContent) {
-          console.log("ExtractText", canvasRendered, pageNumber, autoOcrEnabled)
+          console.log("ExtractText", canvasRendered, pageNumber, autoOcrEnabled, autoTranslateEnabled);
           // 自动OCR时也使用缓存
-          extractText(true)
+          (async () => {
+            const ocrText: string = await extractText(true, canvas.toDataURL('image/png'))
+            if (autoTranslateEnabled && ocrText && pageNumber && pageNumber!=translatingPage){
+              await translateText(true, ocrText, pageNumber)
+            }
+          })();
         }
       }
     }
-  }, [canvasRendered, pageNumber, autoOcrEnabled, canvasRef])
-
-  // 当 OCR 结果更新且开启自动翻译时，自动进行翻译
-  useEffect(() => {
-    if (!autoTranslateEnabled) return
-    if (lastUpdateSourceRef.current !== 'ocr') return
-    if (!extractedText) return
-    // 自动翻译时也使用缓存
-    translateText(true)
-  }, [extractedText, autoTranslateEnabled])
-
+  }, [canvasRendered, pageNumber, autoOcrEnabled, autoTranslateEnabled, canvasRef])
 
   // Load persisted font settings and auto flags on mount
   useEffect(() => {
@@ -122,6 +173,12 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
     load()
   }, [])
 
+  useEffect(()=>{
+    if (pageNumber == translatingPage){
+      setExtractedText(translatingResult)
+    }
+  }, [pageNumber, translatingPage, translatingResult])
+
   // Persist font and auto flags when changed
   useEffect(() => {
     stateManager.saveState({
@@ -135,48 +192,101 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   const handleZoomIn = () => setFontSize(prev => Math.min(prev + 2, 60))
   const handleZoomOut = () => setFontSize(prev => Math.max(prev - 2, 10))
 
-  const translateText = async (useCache = true) => {
-    if (!extractedText || translating || !fileMd5 || !pageNumber) return
-    setTranslating(true)
-    setError(null)
 
-    let streamingText = ''
+
+  // 预处理下一页的内容（OCR和翻译）
+  const prefetchNextPage = async () => {
+    // 检查必要的参数
+    if (!pdfDoc || !fileMd5 || !numPages || !pageNumber) return
+    
+    // 检查是否还有下一页
+    if (pageNumber >= numPages) return
+    
+    // 计算下一页的页码
+    const nextPageNumber = pageNumber + 1
+    
+    console.log(`Prefetching page ${nextPageNumber}`)
+    
     try {
-      // 检查缓存
-      if (useCache) {
-        const cachedText = await cacheService.getTranslatedText(fileMd5, pageNumber)
-        if (cachedText) {
-          lastUpdateSourceRef.current = 'translate'
-          setExtractedText(cachedText)
-          setTranslating(false)
-          return
+      // 检查OCR缓存
+      const cachedOcrText = await cacheService.getOcrText(fileMd5, nextPageNumber)
+      if (cachedOcrText) {
+        console.log(`OCR text for page ${nextPageNumber} found in cache`)
+        // 检查翻译缓存
+        const cachedTranslatedText = await cacheService.getTranslatedText(fileMd5, nextPageNumber)
+        if (!cachedTranslatedText) {
+          // 如果有OCR文本但没有翻译文本，进行翻译
+          console.log(`Translating cached OCR text for page ${nextPageNumber}`)
+          let streamingText = ''
+          const translated = await TranslationService.translateStream(cachedOcrText, '简体中文（中国大陆）',
+            (chunk) => {
+              setTranslatingPage(nextPageNumber)
+              streamingText += chunk
+              setTranslatingResult(streamingText)
+            }
+          )
+          if (translated) {
+            await cacheService.saveTranslatedText(fileMd5, nextPageNumber, translated)
+            setTranslatingPage(-1)
+          }
+        }
+        return
+      }
+      
+      // 获取下一页
+      const page = await pdfDoc.getPage(nextPageNumber)
+      
+      // 创建离屏canvas
+      const offscreenCanvas = document.createElement('canvas')
+      const viewport = page.getViewport({ scale: 1.5 })
+      
+      // 设置canvas尺寸
+      const devicePixelRatio = window.devicePixelRatio || 1
+      offscreenCanvas.width = Math.floor(viewport.width * devicePixelRatio)
+      offscreenCanvas.height = Math.floor(viewport.height * devicePixelRatio)
+      
+      const offscreenCtx = offscreenCanvas.getContext('2d')
+      if (!offscreenCtx) return
+      
+      // 缩放上下文以匹配设备像素比率
+      offscreenCtx.scale(devicePixelRatio, devicePixelRatio)
+      
+      // 渲染页面到离屏canvas
+      const renderTask = page.render({ 
+        canvasContext: offscreenCtx, 
+        viewport,
+        canvas: offscreenCanvas 
+      })
+      await renderTask.promise
+      
+      // 将canvas转换为数据URL
+      const dataUrl = offscreenCanvas.toDataURL('image/png')
+      
+      // 执行OCR
+      console.log(`Performing OCR on page ${nextPageNumber}`)
+      const ocrText = await OcrService.extractTextFromImage(dataUrl)
+      if (ocrText) {
+        // 保存OCR结果到缓存
+        await cacheService.saveOcrText(fileMd5, nextPageNumber, ocrText)
+        
+        // 执行翻译
+        console.log(`Translating OCR text for page ${nextPageNumber}`)
+        let streamingText = ''
+        const translated = await TranslationService.translateStream(ocrText, '简体中文（中国大陆）',
+          (chunk) => {
+            setTranslatingPage(nextPageNumber)
+            streamingText += chunk
+            setTranslatingResult(streamingText)
+        })
+        if (translated) {
+          // 保存翻译结果到缓存
+          await cacheService.saveTranslatedText(fileMd5, nextPageNumber, translated)
+          setTranslatingPage(-1)
+          console.log(`Finished translating OCR text for page ${nextPageNumber}`)
         }
       }
-
-      const translated = await TranslationService.translateStream(
-        extractedText,
-        '简体中文（中国大陆）',
-        (chunk) => {
-          // 流式更新文本
-          streamingText += chunk
-          setExtractedText(streamingText)
-        }
-      )
-
-      if (translated !== '') {
-        // 保存到缓存
-        await cacheService.saveTranslatedText(fileMd5, pageNumber, translated)
-        lastUpdateSourceRef.current = 'translate'
-        // 确保最终结果完整显示
-        setExtractedText(translated)
-      }
-    } catch (err: any) {
-      if (err !== 'Request canceled') {
-        console.log(err)
-        setError(err.message || '翻译失败')
-      }
-    } finally {
-      setTranslating(false)
+    } catch (err) {
+      console.error('Prefetching failed:', err)
     }
   }
 
@@ -239,7 +349,11 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             </button>
           </div>
           <button
-            onClick={() => extractText(false)}
+            onClick={() => {
+              if (canvasRef.current) {
+                extractText(false, canvasRef.current.toDataURL('image/png'))
+              }
+            }}
             disabled={loading}
             className="compact-btn"
             style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}
@@ -247,7 +361,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             {loading ? 'OCR中...' : 'OCR'}
           </button>
           <button
-            onClick={() => translateText(false)}
+            onClick={() => translateText(false, extractedText, pageNumber || 0)}
             disabled={translating || !extractedText}
             className="compact-btn"
             style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}

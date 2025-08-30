@@ -187,8 +187,7 @@ function App() {
         await renderTaskRef.current.promise
         renderTaskRef.current = null
         
-        // 调整PDF颜色以适配当前主题（优先使用WebGL版本）
-        // TODO: webgl不可用需要fallback到cpu
+        // TODO: prefer webgl but fallback to cpu if webgl is not available
         adjustPdfColorsWebGL(offscreenCanvas, theme, themes[theme])
         
         // Copy the processed image from offscreen canvas to the visible canvas
@@ -362,6 +361,8 @@ function App() {
               canvasRendered={canvasRendered}
               filePath={filePath}
               fileMd5={fileMd5}
+              pdfDoc={pdfDoc}
+              numPages={numPages}
             />
           </SplitPane>
         </>
