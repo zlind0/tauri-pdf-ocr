@@ -417,7 +417,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             }}
             disabled={loading}
             className="compact-btn"
-            style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}
+            style={{ backgroundColor: 'var(--button-bg)', color: 'var(--highlight-text-color)' }}
           >
             {loading ? 'OCR...' : 'OCR'}
           </button>
@@ -425,7 +425,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             onClick={() => translateText(false, extractedText, pageNumber || 0)}
             disabled={translating || !extractedText}
             className="compact-btn"
-            style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}
+            style={{ backgroundColor: translating? 'var(--highlight-bg)' : 'var(--button-bg)', color: 'var(--highlight-text-color)' }}
           >
             {translating ? '译...' : '译'}
           </button>
