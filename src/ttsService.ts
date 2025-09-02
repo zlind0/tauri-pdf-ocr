@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { Store } from '@tauri-apps/plugin-store'
+import { listen } from '@tauri-apps/api/event'
 
 interface TtsSettings {
   engine: 'macos-system' | 'other'
@@ -10,6 +11,7 @@ interface TtsSettings {
 export class TtsService {
   private static isSpeaking = false
   private static currentProcessId: string | null = null
+  private static speakingStatusCallbacks: Array<(isSpeaking: boolean) => void> = []
 
   static async getSettings(): Promise<TtsSettings> {
     const store = await Store.load('.settings.dat')
@@ -29,6 +31,33 @@ export class TtsService {
     const store = await Store.load('.settings.dat')
     await store.set('tts_settings', settings)
     await store.save()
+  }
+
+  // 添加监听TTS完成事件
+  static async initialize() {
+    // 监听TTS完成事件
+    await listen<string>('tts-finished', (event) => {
+      // 检查完成的进程是否是当前正在朗读的进程
+      if (this.currentProcessId === event.payload) {
+        this.isSpeaking = false
+        this.currentProcessId = null
+        // 通知所有回调函数
+        this.speakingStatusCallbacks.forEach(callback => callback(false))
+      }
+    })
+  }
+
+  // 添加回调函数用于监听朗读状态变化
+  static onSpeakingStatusChange(callback: (isSpeaking: boolean) => void) {
+    this.speakingStatusCallbacks.push(callback)
+  }
+
+  // 移除回调函数
+  static offSpeakingStatusChange(callback: (isSpeaking: boolean) => void) {
+    const index = this.speakingStatusCallbacks.indexOf(callback)
+    if (index !== -1) {
+      this.speakingStatusCallbacks.splice(index, 1)
+    }
   }
 
   static async getSupportedLanguages(): Promise<string[]> {

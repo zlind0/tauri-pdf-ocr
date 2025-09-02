@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::command;
+use tauri::{command, Emitter};
 
 #[cfg(target_os = "macos")]
 use std::process::Command;
@@ -42,10 +42,10 @@ lazy_static::lazy_static! {
 }
 
 #[command]
-pub async fn speak_text(text: String, voice: Option<String>) -> TtsResult {
+pub async fn speak_text(app_handle: tauri::AppHandle, text: String, voice: Option<String>) -> TtsResult {
     #[cfg(target_os = "macos")]
     {
-        speak_text_macos(text, voice).await
+        speak_text_macos(app_handle, text, voice).await
     }
     
     #[cfg(not(target_os = "macos"))]
@@ -110,7 +110,7 @@ pub async fn get_voices_for_language(language: String) -> VoiceResult {
 }
 
 #[cfg(target_os = "macos")]
-async fn speak_text_macos(text: String, voice: Option<String>) -> TtsResult {
+async fn speak_text_macos(app_handle: tauri::AppHandle, text: String, voice: Option<String>) -> TtsResult {
     use std::process::{Command, Stdio};
     use uuid::Uuid;
     
@@ -133,12 +133,19 @@ async fn speak_text_macos(text: String, voice: Option<String>) -> TtsResult {
     cmd.stderr(Stdio::null());
     
     match cmd.spawn() {
-        Ok(child) => {
-            // 存储进程引用以便后续可以停止
-            {
-                let mut processes = TTS_PROCESSES.lock().unwrap();
-                processes.insert(process_id.clone(), child);
-            }
+        Ok(mut child) => {
+            // 克隆app_handle用于在线程中发送事件
+            let app_handle_clone = app_handle.clone();
+            let process_id_clone = process_id.clone();
+            
+            // 在单独的线程中等待进程完成
+            std::thread::spawn(move || {
+                // 等待进程完成
+                let _ = child.wait();
+                
+                // 发送朗读完成事件到前端
+                let _ = app_handle_clone.emit("tts-finished", process_id_clone);
+            });
             
             TtsResult {
                 success: true,

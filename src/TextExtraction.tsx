@@ -32,6 +32,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   const [isSpeaking, setIsSpeaking] = useState(false) // 添加朗读状态
   // fileMd5 现在通过 props 传入，不再需要本地状态
   const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
+  const speakingStatusCallbackRef = useRef<(isSpeaking: boolean) => void>()
 
   const extractText = async (useCache = true, canvasDataUrl: string): Promise<string> => {
     if (!canvasRef.current || !fileMd5 || !pageNumber) return ''
@@ -175,6 +176,38 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
     load()
   }, [])
 
+  // 初始化TTS服务并监听状态变化
+  useEffect(() => {
+    let isMounted = true
+    
+    const initTtsService = async () => {
+      // 初始化TTS服务以监听事件
+      await TtsService.initialize()
+      
+      // 定义状态变化回调函数
+      speakingStatusCallbackRef.current = (speaking: boolean) => {
+        if (isMounted) {
+          setIsSpeaking(speaking)
+        }
+      }
+      
+      // 注册回调函数
+      if (speakingStatusCallbackRef.current) {
+        TtsService.onSpeakingStatusChange(speakingStatusCallbackRef.current)
+      }
+    }
+    
+    initTtsService()
+    
+    // 清理函数
+    return () => {
+      isMounted = false
+      if (speakingStatusCallbackRef.current) {
+        TtsService.offSpeakingStatusChange(speakingStatusCallbackRef.current)
+      }
+    }
+  }, [])
+
   useEffect(()=>{
     if (pageNumber == translatingPage){
       setExtractedText(translatingResult)
@@ -218,21 +251,6 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
       }
     }
   }
-
-  // 监听朗读状态变化
-  useEffect(() => {
-    const checkSpeakingStatus = () => {
-      const isCurrentlySpeaking = TtsService.isCurrentlySpeaking()
-      if (!isCurrentlySpeaking && isSpeaking) {
-        // 如果TTS服务显示没有在朗读，但我们的状态显示在朗读，则更新状态
-        setIsSpeaking(false)
-      }
-    }
-    
-    // 定期检查朗读状态
-    const interval = setInterval(checkSpeakingStatus, 1000)
-    return () => clearInterval(interval)
-  }, [isSpeaking])
 
 
 
