@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './app-compact.css'
 
 interface OutlineItemProps {
@@ -83,20 +83,207 @@ const OutlineItem = ({ item, depth = 0, onItemClick, currentPage, nextPageNumber
   )
 }
 
+interface ProgressBarPanelProps {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  onClose: () => void
+}
+
+const ProgressBarPanel = ({ currentPage, totalPages, onPageChange, onClose }: ProgressBarPanelProps) => {
+  const [tempPage, setTempPage] = useState(currentPage.toString())
+  const [isDragging, setIsDragging] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // 检查是否点击了目录按钮
+      const target = event.target as HTMLElement
+      const isOutlineButton = target instanceof HTMLElement && 
+        target.tagName === 'BUTTON' && 
+        (target.textContent === '目录' || target.getAttribute('title')?.includes('目录'))
+      
+      if (panelRef.current && 
+          !panelRef.current.contains(event.target as Node) && 
+          !isOutlineButton) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [onClose])
+  
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const page = parseInt(e.target.value)
+    onPageChange(page)
+  }
+  
+  const handleSliderMouseDown = () => {
+    setIsDragging(true)
+  }
+  
+  const handleSliderMouseUp = () => {
+    setIsDragging(false)
+  }
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempPage(e.target.value)
+  }
+  
+  const handleInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const page = parseInt(tempPage)
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      onPageChange(page)
+    } else {
+      // 如果输入无效，重置为当前页码
+      setTempPage(currentPage.toString())
+    }
+  }
+  
+  return (
+    <div 
+      ref={panelRef}
+      style={{
+        position: 'absolute',
+        top: '40px',
+        left: '16px',
+        width: '400px',
+        maxHeight: '80vh',
+        backgroundColor: 'var(--panel-bg)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '4px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        zIndex: 1000,
+        textAlign: 'left',
+        padding: '12px',
+        color: 'var(--panel-text-color)'
+      }}
+    >
+      <div style={{
+        padding: '12px',
+        borderBottom: '1px solid var(--border-color)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h3 style={{ margin: 0, fontSize: '16px' }}>页面导航</h3>
+        <button 
+          onClick={onClose}
+          className="compact-btn"
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '18px',
+            cursor: 'pointer',
+            padding: '0',
+            width: '24px',
+            height: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          ×
+        </button>
+      </div>
+      <div style={{ padding: '16px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+            当前页面: {currentPage} / {totalPages}
+          </label>
+          <input
+            type="range"
+            min="1"
+            max={totalPages}
+            value={currentPage}
+            onChange={handleSliderChange}
+            onMouseDown={handleSliderMouseDown}
+            onMouseUp={handleSliderMouseUp}
+            style={{
+              width: '100%',
+              height: '6px',
+              borderRadius: '3px',
+              background: 'var(--border-color)',
+              outline: 'none',
+              WebkitAppearance: 'none',
+              appearance: 'none'
+            }}
+          />
+          {/* 自定义滑块样式 */}
+          <style>{`
+            input[type="range"]::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              appearance: none;
+              width: 16px;
+              height: 16px;
+              border-radius: 50%;
+              background: var(--highlight-bg);
+              cursor: pointer;
+              border: 1px solid var(--border-color);
+            }
+            input[type="range"]::-moz-range-thumb {
+              width: 16px;
+              height: 16px;
+              border-radius: 50%;
+              background: var(--highlight-bg);
+              cursor: pointer;
+              border: 1px solid var(--border-color);
+            }
+          `}</style>
+        </div>
+        <form onSubmit={handleInputSubmit} style={{ display: 'flex', gap: '8px' }}>
+          <input
+            type="number"
+            min="1"
+            max={totalPages}
+            value={tempPage}
+            onChange={handleInputChange}
+            style={{
+              flex: 1,
+              padding: '6px 12px',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--button-bg)',
+              color: 'var(--text-color)',
+              fontFamily: 'inherit',
+              fontSize: 'inherit'
+            }}
+          />
+          <button 
+            type="submit"
+            className="compact-btn"
+            style={{ 
+              padding: '6px 12px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            跳转
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 interface OutlinePanelProps {
   outline: any[] | null
   onClose: () => void
   onItemClick: (dest: any) => void
   currentPage: number
+  totalPages?: number
+  onPageChange?: (page: number) => void
 }
 
-export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: OutlinePanelProps) => {
+export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage, totalPages = 0, onPageChange }: OutlinePanelProps) => {
   const outlineRef = useRef<HTMLDivElement>(null)
   
-  if (!outline || outline.length === 0) return null
-  
-  // 保存和恢复滚动位置
+  // 保存和恢复滚动位置（仅适用于有目录的情况）
   useEffect(() => {
+    if (!outline || outline.length === 0) return
+    
     const container = outlineRef.current
     if (!container) return
     
@@ -120,7 +307,7 @@ export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: Out
     return () => {
       container.removeEventListener('scroll', handleScroll)
     }
-  }, [])
+  }, [outline])
   
   // 点击外部关闭面板
   useEffect(() => {
@@ -129,7 +316,7 @@ export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: Out
       const target = event.target as HTMLElement
       const isOutlineButton = target instanceof HTMLElement && 
         target.tagName === 'BUTTON' && 
-        target.textContent === '目录'
+        (target.textContent === '目录' || target.getAttribute('title')?.includes('目录'))
       
       if (outlineRef.current && 
           !outlineRef.current.contains(event.target as Node) && 
@@ -143,6 +330,19 @@ export const OutlinePanel = ({ outline, onClose, onItemClick, currentPage }: Out
     }
   }, [onClose])
 
+  // 如果没有目录但有总页数，显示进度条面板
+  if ((!outline || outline.length === 0) && totalPages > 0 && onPageChange) {
+    return <ProgressBarPanel 
+      currentPage={currentPage} 
+      totalPages={totalPages} 
+      onPageChange={onPageChange} 
+      onClose={onClose} 
+    />
+  }
+  
+  // 如果没有目录也没有总页数或跳转函数，不显示任何内容
+  if (!outline || outline.length === 0) return null
+  
   return (
     <div 
       ref={outlineRef}

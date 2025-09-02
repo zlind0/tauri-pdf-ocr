@@ -346,6 +346,13 @@ function App() {
               onClose={() => setShowOutline(false)} 
               onItemClick={handleOutlineItemClick} 
               currentPage={pageNumber}
+              totalPages={numPages}
+              onPageChange={(page) => {
+                const clampedPage = Math.min(Math.max(page, 1), numPages)
+                setPageNumber(clampedPage)
+                saveState({ pageNumber: clampedPage })
+                setCanvasRendered(false) // 标记页面正在切换，等待渲染完成
+              }}
             />
           )}
           <SplitPane
@@ -381,7 +388,7 @@ function App() {
         <button onClick={handleOpen} title="打开文件" className="compact-btn">
           <FiFolder size={20} />
         </button>
-        {filePath && outline && outline.length > 0 && (
+        {filePath && (
           <button 
             onClick={() => setShowOutline(!showOutline)}
             className={`compact-btn ${showOutline ? 'active' : ''}`}
