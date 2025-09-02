@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Store } from '@tauri-apps/plugin-store'
 import { cacheService } from './cacheService'
 import { OcrService } from './ocrService'
+import { TtsService } from './ttsService'
 import './settings.css'
 
 interface OcrSettings {
@@ -16,6 +17,12 @@ interface TranslationSettings {
   endpoint: string
   apiKey: string
   model: string
+}
+
+interface TtsSettings {
+  engine: 'macos-system' | 'other'
+  language?: string
+  voice?: string
 }
 
 interface SettingsProps {
@@ -37,14 +44,24 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     apiKey: '',
     model: ''
   })
+  const [ttsSettings, setTtsSettings] = useState<TtsSettings>({
+    engine: 'macos-system',
+    language: 'zh-CN',
+    voice: 'Ting-Ting'
+  })
   const [loading, setLoading] = useState(false)
   const [cacheClearing, setCacheClearing] = useState(false)
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>([])
   const [loadingLanguages, setLoadingLanguages] = useState(false)
+  const [supportedTtsLanguages, setSupportedTtsLanguages] = useState<string[]>([])
+  const [ttsVoices, setTtsVoices] = useState<{ name: string; identifier: string }[]>([])
+  const [loadingTtsLanguages, setLoadingTtsLanguages] = useState(false)
+  const [loadingTtsVoices, setLoadingTtsVoices] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       loadSettings()
+      loadTtsSettings()
     }
   }, [isOpen])
 
@@ -83,6 +100,27 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     }
   }
 
+  const loadTtsSettings = async () => {
+    try {
+      const store = await Store.load('.settings.dat')
+      const savedTtsSettings = await store.get<TtsSettings>('tts_settings')
+      if (savedTtsSettings) {
+        setTtsSettings(savedTtsSettings)
+        // 加载TTS语言和音色列表
+        loadSupportedTtsLanguages()
+        if (savedTtsSettings.language) {
+          loadTtsVoicesForLanguage(savedTtsSettings.language)
+        }
+      } else {
+        // 加载默认的TTS语言和音色列表
+        loadSupportedTtsLanguages()
+        loadTtsVoicesForLanguage('zh-CN')
+      }
+    } catch (error) {
+      console.error('Failed to load TTS settings:', error)
+    }
+  }
+
   const loadSupportedLanguages = async () => {
     // 只在macOS上加载支持的语言列表
     if (settings.engine === 'macos-system') {
@@ -99,12 +137,39 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     }
   }
 
+  const loadSupportedTtsLanguages = async () => {
+    setLoadingTtsLanguages(true)
+    try {
+      const languages = await TtsService.getSupportedLanguages()
+      setSupportedTtsLanguages(languages)
+    } catch (error) {
+      console.error('Failed to load supported TTS languages:', error)
+      setSupportedTtsLanguages([])
+    } finally {
+      setLoadingTtsLanguages(false)
+    }
+  }
+
+  const loadTtsVoicesForLanguage = async (language: string) => {
+    setLoadingTtsVoices(true)
+    try {
+      const voices = await TtsService.getVoicesForLanguage(language)
+      setTtsVoices(voices)
+    } catch (error) {
+      console.error('Failed to load TTS voices for language:', error)
+      setTtsVoices([])
+    } finally {
+      setLoadingTtsVoices(false)
+    }
+  }
+
   const saveSettings = async () => {
     setLoading(true)
     try {
       const store = await Store.load('.settings.dat')
       await store.set('ocr_settings', settings)
       await store.set('translation_settings', translationSettings)
+      await store.set('tts_settings', ttsSettings)
       await store.save()
       onClose()
     } catch (error) {
@@ -128,6 +193,18 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
         // 如果切换到LLM引擎，清空语言列表相关状态
         setSupportedLanguages([])
       }
+    }
+  }
+
+  const handleTtsInputChange = (field: keyof TtsSettings, value: string | 'macos-system' | 'other') => {
+    setTtsSettings(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    
+    // 如果切换语言，加载对应的音色列表
+    if (field === 'language') {
+      loadTtsVoicesForLanguage(value as string)
     }
   }
 
@@ -304,7 +381,62 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
         </div>
 
         <hr className="settings-divider" />
-        <h2 className="settings-header">缓存管理</h2>
+        <h2 className="settings-header">朗读(TTS) 设置</h2>
+        
+        <div className="settings-section">
+          <div className="form-group">
+            <label>TTS 引擎:</label>
+            <select
+              value={ttsSettings.engine || 'macos-system'}
+              onChange={(e) => handleTtsInputChange('engine', e.target.value as 'macos-system' | 'other')}
+            >
+              <option value="macos-system">系统 TTS (仅 macOS)</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+
+          {/* 只有在选择系统TTS引擎时才显示语言和音色选择 */}
+          {ttsSettings.engine === 'macos-system' && (
+            <>
+              <div className="form-group">
+                <label>语言:</label>
+                {loadingTtsLanguages ? (
+                  <p className="loading-text">正在加载支持的语言列表...</p>
+                ) : (
+                  <select
+                    value={ttsSettings.language || 'zh-CN'}
+                    onChange={(e) => handleTtsInputChange('language', e.target.value)}
+                  >
+                    {supportedTtsLanguages.map((language) => (
+                      <option key={language} value={language}>
+                        {language}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>音色:</label>
+                {loadingTtsVoices ? (
+                  <p className="loading-text">正在加载音色列表...</p>
+                ) : (
+                  <select
+                    value={ttsSettings.voice || ''}
+                    onChange={(e) => handleTtsInputChange('voice', e.target.value)}
+                  >
+                    <option value="">默认音色</option>
+                    {ttsVoices.map((voice) => (
+                      <option key={voice.identifier} value={voice.identifier}>
+                        {voice.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </>
+          )}
+        </div>
         
         <div className="settings-section">
           <p style={{ marginBottom: '12px' }}>管理OCR和翻译结果的缓存：</p>

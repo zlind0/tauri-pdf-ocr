@@ -1,5 +1,7 @@
 mod ocr;
+mod tts;
 use ocr::{extract_text_with_system_ocr, get_supported_recognition_languages};
+use tts::{speak_text, stop_speaking, get_supported_tts_languages, get_voices_for_language};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -10,7 +12,11 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             extract_text_with_system_ocr,
-            get_supported_recognition_languages
+            get_supported_recognition_languages,
+            speak_text,
+            stop_speaking,
+            get_supported_tts_languages,
+            get_voices_for_language
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

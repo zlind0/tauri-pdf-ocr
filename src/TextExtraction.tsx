@@ -3,6 +3,7 @@ import { stateManager } from './stateManager'
 import { Settings } from './Settings'
 import { OcrService } from './ocrService'
 import { TranslationService } from './translationService'
+import { TtsService } from './ttsService'
 import { cacheService } from './cacheService'
 import './app-compact.css'
 
@@ -28,6 +29,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   const [translating, setTranslating] = useState(false)
   const [translatingResult, setTranslatingResult] = useState<string>('')
   const [translatingPage, setTranslatingPage] = useState<number>(-1) // -1 represents that there's no ongoing translation
+  const [isSpeaking, setIsSpeaking] = useState(false) // 添加朗读状态
   // fileMd5 现在通过 props 传入，不再需要本地状态
   const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
 
@@ -189,12 +191,53 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
     })
   }, [fontFamily, fontSize, autoOcrEnabled, autoTranslateEnabled])
 
+  // 处理朗读功能
+  const handleSpeak = async () => {
+    if (isSpeaking) {
+      // 如果正在朗读，停止朗读
+      try {
+        await TtsService.stop()
+        setIsSpeaking(false)
+      } catch (err) {
+        console.error('停止朗读失败:', err)
+        setError('停止朗读失败')
+      }
+    } else {
+      // 如果没有在朗读，开始朗读
+      if (!extractedText) {
+        setError('没有可朗读的文本')
+        return
+      }
+      
+      try {
+        await TtsService.speak(extractedText)
+        setIsSpeaking(true)
+      } catch (err: any) {
+        console.error('朗读失败:', err)
+        setError(err.message || '朗读失败')
+      }
+    }
+  }
+
+  // 监听朗读状态变化
+  useEffect(() => {
+    const checkSpeakingStatus = () => {
+      const isCurrentlySpeaking = TtsService.isCurrentlySpeaking()
+      if (!isCurrentlySpeaking && isSpeaking) {
+        // 如果TTS服务显示没有在朗读，但我们的状态显示在朗读，则更新状态
+        setIsSpeaking(false)
+      }
+    }
+    
+    // 定期检查朗读状态
+    const interval = setInterval(checkSpeakingStatus, 1000)
+    return () => clearInterval(interval)
+  }, [isSpeaking])
+
+
+
   const handleZoomIn = () => setFontSize(prev => Math.min(prev + 2, 60))
   const handleZoomOut = () => setFontSize(prev => Math.max(prev - 2, 10))
-
-
-
-  // 预处理下一页的内容（OCR和翻译）
   const prefetchNextPage = async () => {
     // 检查必要的参数
     if (!pdfDoc || !fileMd5 || !numPages || !pageNumber) return
@@ -358,7 +401,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             className="compact-btn"
             style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}
           >
-            {loading ? 'OCR中...' : 'OCR'}
+            {loading ? 'OCR...' : 'OCR'}
           </button>
           <button
             onClick={() => translateText(false, extractedText, pageNumber || 0)}
@@ -366,7 +409,15 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             className="compact-btn"
             style={{ backgroundColor: 'var(--highlight-bg)', color: 'var(--highlight-text-color)' }}
           >
-            {translating ? '翻译中...' : '翻译'}
+            {translating ? '译...' : '译'}
+          </button>
+          <button
+            onClick={handleSpeak}
+            disabled={!extractedText}
+            className="compact-btn"
+            style={{ backgroundColor: isSpeaking ? 'var(--highlight-bg)' : 'var(--button-bg)', color: isSpeaking ? 'var(--highlight-text-color)' : 'var(--button-text-color)' }}
+          >
+            {isSpeaking ? '停' : '读'}
           </button>
           <button
             onClick={() => setShowSettings(true)}
