@@ -8,6 +8,7 @@ export interface AppState {
   textPanelFontSize: number
   autoOcrEnabled: boolean
   autoTranslateEnabled: boolean
+  ttsAutoTurnPageEnabled?: boolean // 添加TTS自动翻页选项
 }
 
 const DEFAULT_STATE: AppState = {
@@ -17,7 +18,8 @@ const DEFAULT_STATE: AppState = {
   textPanelFontFamily: 'serif',
   textPanelFontSize: 18,
   autoOcrEnabled: false,
-  autoTranslateEnabled: false
+  autoTranslateEnabled: false,
+  ttsAutoTurnPageEnabled: false // 默认关闭TTS自动翻页
 }
 
 class StateManager {

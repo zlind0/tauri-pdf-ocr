@@ -362,15 +362,22 @@ function App() {
             style={{ height: '100%' }}
           >
             {renderPdfViewer()}
-            <TextExtraction 
-              canvasRef={canvasRef}
-              pageNumber={pageNumber}
-              canvasRendered={canvasRendered}
-              filePath={filePath}
-              fileMd5={fileMd5}
-              pdfDoc={pdfDoc}
-              numPages={numPages}
-            />
+                      <TextExtraction 
+            canvasRef={canvasRef}
+            pageNumber={pageNumber}
+            canvasRendered={canvasRendered}
+            filePath={filePath}
+            fileMd5={fileMd5}
+            pdfDoc={pdfDoc}
+            numPages={numPages}
+            onTurnPage={(direction) => {
+              if (direction === 'next') {
+                goNext();
+              } else {
+                goPrev();
+              }
+            }}
+          />
           </SplitPane>
         </>
       )

@@ -12,6 +12,7 @@ export class TtsService {
   private static isSpeaking = false
   private static currentProcessId: string | null = null
   private static speakingStatusCallbacks: Array<(isSpeaking: boolean) => void> = []
+  private static autoTurnPageCallback: (() => void) | null = null
 
   static async getSettings(): Promise<TtsSettings> {
     const store = await Store.load('.settings.dat')
@@ -43,6 +44,11 @@ export class TtsService {
         this.currentProcessId = null
         // 通知所有回调函数
         this.speakingStatusCallbacks.forEach(callback => callback(false))
+        
+        // 如果设置了自动翻页回调函数，调用它
+        if (this.autoTurnPageCallback) {
+          this.autoTurnPageCallback()
+        }
       }
     })
   }
@@ -50,6 +56,11 @@ export class TtsService {
   // 添加回调函数用于监听朗读状态变化
   static onSpeakingStatusChange(callback: (isSpeaking: boolean) => void) {
     this.speakingStatusCallbacks.push(callback)
+  }
+
+  // 设置自动翻页回调函数
+  static setAutoTurnPageCallback(callback: () => void) {
+    this.autoTurnPageCallback = callback
   }
 
   // 移除回调函数
@@ -146,9 +157,5 @@ export class TtsService {
         console.error('停止朗读失败:', error)
       }
     }
-  }
-
-  static isCurrentlySpeaking(): boolean {
-    return this.isSpeaking
   }
 }

@@ -15,9 +15,10 @@ interface TextExtractionProps {
   fileMd5?: string | null // 添加文件MD5属性
   pdfDoc?: import('pdfjs-dist').PDFDocumentProxy | null // 添加PDF文档属性
   numPages?: number // 添加总页数属性
+  onTurnPage?: (direction: 'next' | 'prev') => void // 添加翻页回调函数
 }
 
-export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath, fileMd5, pdfDoc, numPages }: TextExtractionProps) {
+export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath, fileMd5, pdfDoc, numPages, onTurnPage }: TextExtractionProps) {
   const [extractedText, setExtractedText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -29,8 +30,14 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   const [translating, setTranslating] = useState(false)
   const [translatingResult, setTranslatingResult] = useState<string>('')
   const [translatingPage, setTranslatingPage] = useState<number>(-1) // -1 represents that there's no ongoing translation
-  const [isSpeaking, setIsSpeaking] = useState(false) // 添加朗读状态
-  // fileMd5 现在通过 props 传入，不再需要本地状态
+  const [pageOcrTranslationReady, setPageOcrTranslationReady] = useState(false) // OCR和翻译均已完成
+  const [ttsAutoTurnPageEnabled, setTtsAutoTurnPageEnabled] = useState(false) // 添加TTS自动翻页状态
+
+  const [isSpeaking, setIsSpeaking] = useState(false) // 朗读状态
+  const [isCurrentlyAutoSpeaking, setIsCurrentlyAutoSpeaking] = useState(false) 
+  const isCurrentlyAutoSpeakingRef = useRef(isCurrentlyAutoSpeaking);
+  // 添加在OCR或翻译完成后自动朗读的标志，此标志打开时，自动朗读并翻页直到读完。相比于isSpeaking，此状态也包括未在朗读而正在等待ocr的状态
+
   const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
   const speakingStatusCallbackRef = useRef<(isSpeaking: boolean) => void>()
 
@@ -126,12 +133,30 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
 
   useEffect(()=>{
     if (!translating && autoTranslateEnabled){
+      setPageOcrTranslationReady(true)
       prefetchNextPage()
     }
   }, [translating, autoTranslateEnabled])
 
+  useEffect(()=>{
+    console.log("OCR Translation ready.")
+    if(pageOcrTranslationReady && isCurrentlyAutoSpeakingRef.current){
+      // 自动阅读时，新的页面加载完毕，则继续这一页的朗读
+      handleSpeak(true)
+    }
+  }, [pageOcrTranslationReady])
+
+  useEffect(()=>{
+    stopSpeak(true)
+  }, [pageNumber])
+
+  useEffect(() => {
+    isCurrentlyAutoSpeakingRef.current = isCurrentlyAutoSpeaking;
+  }, [isCurrentlyAutoSpeaking]);
+
   useEffect(() => {
     if (autoOcrEnabled && canvasRendered && canvasRef.current) {
+      setPageOcrTranslationReady(false)
       // 确保canvas有内容再执行OCR
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
@@ -154,6 +179,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             if (autoTranslateEnabled && ocrText && pageNumber && pageNumber!=translatingPage){
               await translateText(true, ocrText, pageNumber)
             }
+            setPageOcrTranslationReady(true)
           })();
         }
       }
@@ -169,6 +195,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
         if (saved.textPanelFontSize) setFontSize(saved.textPanelFontSize)
         if (typeof saved.autoOcrEnabled === 'boolean') setAutoOcrEnabled(saved.autoOcrEnabled)
         if (typeof saved.autoTranslateEnabled === 'boolean') setAutoTranslateEnabled(saved.autoTranslateEnabled)
+        if (typeof saved.ttsAutoTurnPageEnabled === 'boolean') setTtsAutoTurnPageEnabled(saved.ttsAutoTurnPageEnabled)
       } catch (err) {
         // noop
       }
@@ -206,12 +233,12 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
         TtsService.offSpeakingStatusChange(speakingStatusCallbackRef.current)
       }
     }
-  }, [])
+  }, [ttsAutoTurnPageEnabled, pageNumber, numPages, onTurnPage])
 
   useEffect(()=>{
     if (pageNumber == translatingPage){
       setExtractedText(translatingResult)
-    }
+        }
   }, [pageNumber, translatingPage, translatingResult])
 
   // Persist font and auto flags when changed
@@ -221,34 +248,52 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
       textPanelFontSize: fontSize,
       autoOcrEnabled,
       autoTranslateEnabled,
+      ttsAutoTurnPageEnabled,
     })
-  }, [fontFamily, fontSize, autoOcrEnabled, autoTranslateEnabled])
+  }, [fontFamily, fontSize, autoOcrEnabled, autoTranslateEnabled, ttsAutoTurnPageEnabled])
 
-  // 处理朗读功能
-  const handleSpeak = async () => {
+
+  const stopSpeak = (autoTriggered: boolean = false) => {
+    if (!autoTriggered) setIsCurrentlyAutoSpeaking(false)
+    TtsService.setAutoTurnPageCallback(()=>{});
     if (isSpeaking) {
-      // 如果正在朗读，停止朗读
       try {
-        await TtsService.stop()
+        TtsService.stop()
         setIsSpeaking(false)
       } catch (err) {
         console.error('停止朗读失败:', err)
         setError('停止朗读失败')
       }
-    } else {
-      // 如果没有在朗读，开始朗读
-      if (!extractedText) {
-        setError('没有可朗读的文本')
-        return
-      }
-      
-      try {
-        await TtsService.speak(extractedText)
-        setIsSpeaking(true)
-      } catch (err: any) {
-        console.error('朗读失败:', err)
-        setError(err.message || '朗读失败')
-      }
+    }
+  }
+  // 开始朗读功能
+  const handleSpeak = async (autoTriggered: boolean = false) => {
+    if (!autoTriggered) setIsCurrentlyAutoSpeaking(false)
+    stopSpeak(true)
+
+    TtsService.setAutoTurnPageCallback(() => {
+        console.log("TTS finished, callback")
+        if (isCurrentlyAutoSpeakingRef.current && pageNumber && numPages && onTurnPage) {
+          // 只有在不是最后一页时才翻页
+          if (pageNumber < numPages) {
+            console.log("TTS finished, auto turning to next page");
+            onTurnPage('next');
+          }
+        }
+      });
+
+    if (!extractedText) {
+      setError('没有可朗读的文本')
+      return
+    }
+    
+    try {
+      setIsSpeaking(true)
+      setIsCurrentlyAutoSpeaking(true)
+      await TtsService.speak(extractedText)
+    } catch (err: any) {
+      console.error('朗读失败:', err)
+      setError(err.message || '朗读失败')
     }
   }
 
@@ -381,6 +426,19 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             />
             自动翻译
           </label>
+          {/* 状态图标 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}>
+            {pageOcrTranslationReady ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z" fill="#4CAF50"/>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="rotating">
+                <path d="M12 4V2C8.64 2 5.52 3.36 3.16 5.64L4.58 7.06C6.54 5.18 9.14 4 12 4Z" fill="#2196F3"/>
+                <path d="M12 22C15.36 22 18.48 20.64 20.84 18.36L19.42 16.94C17.46 18.82 14.86 20 12 20V22Z" fill="#2196F3"/>
+              </svg>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 8 }}>
             <select
               value={fontFamily}
@@ -430,7 +488,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
             {translating ? '译...' : '译'}
           </button>
           <button
-            onClick={handleSpeak}
+            onClick={() => (isSpeaking ? stopSpeak() : handleSpeak())}
             disabled={!extractedText}
             className="compact-btn"
             style={{ backgroundColor: isSpeaking ? 'var(--highlight-bg)' : 'var(--button-bg)', color: isSpeaking ? 'var(--highlight-text-color)' : 'var(--button-text-color)' }}

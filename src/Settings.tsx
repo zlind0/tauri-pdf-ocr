@@ -23,6 +23,7 @@ interface TtsSettings {
   engine: 'macos-system' | 'other'
   language?: string
   voice?: string
+  autoTurnPage?: boolean // 添加自动翻页选项
 }
 
 interface SettingsProps {
@@ -47,7 +48,8 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
   const [ttsSettings, setTtsSettings] = useState<TtsSettings>({
     engine: 'macos-system',
     language: 'zh-CN',
-    voice: 'Ting-Ting'
+    voice: 'Ting-Ting',
+    autoTurnPage: false // 默认关闭自动翻页
   })
   const [loading, setLoading] = useState(false)
   const [cacheClearing, setCacheClearing] = useState(false)
@@ -196,7 +198,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     }
   }
 
-  const handleTtsInputChange = (field: keyof TtsSettings, value: string | 'macos-system' | 'other') => {
+  const handleTtsInputChange = (field: keyof TtsSettings, value: string | 'macos-system' | 'other' | boolean) => {
     setTtsSettings(prev => ({
       ...prev,
       [field]: value
@@ -436,10 +438,27 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
               </div>
             </>
           )}
+          
+          {/* 自动翻页选项 */}
+          <div className="form-group">
+            <label>
+              读完自动翻页：
+            </label>
+            <input
+                type="checkbox"
+                className="compact-checkbox"
+                checked={ttsSettings.autoTurnPage || false}
+                onChange={(e) => handleTtsInputChange('autoTurnPage', e.target.checked)}
+              />
+            <p className="setting-description">
+              开启后，当前页朗读完成后会自动翻到下一页，并在OCR和翻译（如果启用）完成后继续朗读，直到整本书读完。
+            </p>
+          </div>
         </div>
         
         <div className="settings-section">
-          <p style={{ marginBottom: '12px' }}>管理OCR和翻译结果的缓存：</p>
+          <hr className="settings-divider" />
+          <h2 className="settings-header">管理OCR和翻译结果的缓存：</h2>
           <div className="cache-buttons">
             <button
               className="btn"
