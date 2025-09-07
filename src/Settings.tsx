@@ -9,7 +9,7 @@ interface OcrSettings {
   endpoint: string
   apiKey: string
   model: string
-  engine?: 'llm' | 'macos-system' // 添加引擎选择
+  engine?: 'llm' | 'system-ocr' // 添加引擎选择
   ocrLanguages?: string[] // 添加OCR语言设置
 }
 
@@ -20,7 +20,7 @@ interface TranslationSettings {
 }
 
 interface TtsSettings {
-  engine: 'macos-system' | 'other'
+  engine: 'system-tts' | 'other'
   language?: string
   voice?: string
   autoTurnPage?: boolean // 添加自动翻页选项
@@ -46,7 +46,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     model: ''
   })
   const [ttsSettings, setTtsSettings] = useState<TtsSettings>({
-    engine: 'macos-system',
+    engine: 'system-tts',
     language: 'zh-CN',
     voice: 'Ting-Ting',
     autoTurnPage: false // 默认关闭自动翻页
@@ -69,7 +69,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
 
   // 当引擎设置改变时，加载相应的支持语言列表
   useEffect(() => {
-    if (isOpen && settings.engine === 'macos-system') {
+    if (isOpen && settings.engine === 'system-ocr') {
       loadSupportedLanguages()
     }
   }, [isOpen, settings.engine])
@@ -89,7 +89,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
         }
         setSettings(savedSettings)
         // 如果加载的设置是系统OCR引擎，加载支持的语言列表
-        if (savedSettings.engine === 'macos-system') {
+        if (savedSettings.engine === 'system-ocr') {
           loadSupportedLanguages()
         }
       }
@@ -124,8 +124,8 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
   }
 
   const loadSupportedLanguages = async () => {
-    // 只在macOS上加载支持的语言列表
-    if (settings.engine === 'macos-system') {
+    // 只在系统OCR上加载支持的语言列表
+    if (settings.engine === 'system-ocr') {
       setLoadingLanguages(true)
       try {
         const languages = await OcrService.getSupportedRecognitionLanguages()
@@ -181,7 +181,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     }
   }
 
-  const handleInputChange = (field: keyof OcrSettings, value: string | string[] | 'llm' | 'macos-system') => {
+  const handleInputChange = (field: keyof OcrSettings, value: string | string[] | 'llm' | 'system-ocr') => {
     setSettings(prev => ({
       ...prev,
       [field]: value
@@ -189,7 +189,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     
     // 如果切换OCR引擎，加载对应的支持语言列表
     if (field === 'engine') {
-      if (value === 'macos-system') {
+      if (value === 'system-ocr') {
         loadSupportedLanguages()
       } else {
         // 如果切换到LLM引擎，清空语言列表相关状态
@@ -198,7 +198,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
     }
   }
 
-  const handleTtsInputChange = (field: keyof TtsSettings, value: string | 'macos-system' | 'other' | boolean) => {
+  const handleTtsInputChange = (field: keyof TtsSettings, value: string | 'system-tts' | 'other' | boolean) => {
     setTtsSettings(prev => ({
       ...prev,
       [field]: value
@@ -274,15 +274,15 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
             <label>OCR 引擎:</label>
             <select
               value={settings.engine || 'llm'}
-              onChange={(e) => handleInputChange('engine', e.target.value as 'llm' | 'macos-system')}
+              onChange={(e) => handleInputChange('engine', e.target.value as 'llm' | 'system-ocr')}
             >
               <option value="llm">LLM 引擎</option>
-              <option value="macos-system">系统 OCR (仅 macOS)</option>
+              <option value="system-ocr">系统 OCR (Windows或macOS)</option>
             </select>
           </div>
 
           {/* 只有在选择LLM引擎时才显示API设置 */}
-          {settings.engine !== 'macos-system' && (
+          {settings.engine !== 'system-ocr' && (
             <>
               <div className="form-group">
                 <label>Endpoint:</label>
@@ -317,7 +317,7 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
           )}
 
           {/* 只有在选择系统OCR引擎时才显示语言选择 */}
-          {settings.engine === 'macos-system' && (
+          {settings.engine === 'system-ocr' && (
             <div className="settings-section">
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 OCR 识别语言:
@@ -389,16 +389,16 @@ export function Settings({ isOpen, onClose, fileMd5 }: SettingsProps) {
           <div className="form-group">
             <label>TTS 引擎:</label>
             <select
-              value={ttsSettings.engine || 'macos-system'}
-              onChange={(e) => handleTtsInputChange('engine', e.target.value as 'macos-system' | 'other')}
+              value={ttsSettings.engine || 'system-tts'}
+              onChange={(e) => handleTtsInputChange('engine', e.target.value as 'system-tts' | 'other')}
             >
-              <option value="macos-system">系统 TTS (仅 macOS)</option>
+              <option value="system-tts">系统 TTS (Windows或macOS)</option>
               <option value="other">其他</option>
             </select>
           </div>
 
           {/* 只有在选择系统TTS引擎时才显示语言和音色选择 */}
-          {ttsSettings.engine === 'macos-system' && (
+          {ttsSettings.engine === 'system-tts' && (
             <>
               <div className="form-group">
                 <label>语言:</label>

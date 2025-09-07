@@ -3,7 +3,7 @@ import { Store } from '@tauri-apps/plugin-store'
 import { listen } from '@tauri-apps/api/event'
 
 interface TtsSettings {
-  engine: 'macos-system' | 'other'
+  engine: 'system-tts' | 'other'
   language?: string
   voice?: string
 }
@@ -18,9 +18,9 @@ export class TtsService {
     const store = await Store.load('.settings.dat')
     const settings = await store.get<TtsSettings>('tts_settings')
     if (!settings) {
-      // 默认使用macOS系统TTS引擎
+      // 默认使用系统TTS引擎
       return {
-        engine: 'macos-system',
+        engine: 'system-tts',
         language: 'zh-CN',
         voice: 'Ting-Ting'
       }
@@ -121,7 +121,7 @@ export class TtsService {
 
     const settings = await this.getSettings()
     
-    if (settings.engine === 'macos-system') {
+    if (settings.engine === 'system-tts') {
       try {
         console.log("Speak Text", settings.voice, text)
         const result: { success: boolean; process_id?: string; error_message?: string } = 
