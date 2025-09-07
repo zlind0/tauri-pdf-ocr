@@ -4,6 +4,64 @@ use tauri::command;
 #[cfg(target_os = "macos")]
 use std::process::Command;
 
+/// 去除中文字符之间的空格
+/// 保留拉丁字母之间的空格，只去除中文字符与中文字符或中文标点之间的空格
+fn remove_chinese_spaces(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut result = String::new();
+    let mut i = 0;
+    
+    while i < chars.len() {
+        let current_char = chars[i];
+        
+        // 如果当前字符是空格
+        if current_char == ' ' {
+            // 检查前一个字符是否是中文字符或中文标点
+            let prev_is_chinese = if i > 0 {
+                is_chinese_char(chars[i - 1])
+            } else {
+                false
+            };
+            
+            // 检查后一个字符是否是中文字符或中文标点
+            let next_is_chinese = if i < chars.len() - 1 {
+                is_chinese_char(chars[i + 1])
+            } else {
+                false
+            };
+            
+            // 只有当前后都是中文字符时才去除空格
+            if prev_is_chinese && next_is_chinese {
+                // 去除空格，不添加到结果中
+            } else {
+                // 保留空格
+                result.push(current_char);
+            }
+        } else {
+            // 不是空格，直接添加
+            result.push(current_char);
+        }
+        
+        i += 1;
+    }
+    
+    result
+}
+
+/// 判断字符是否为中文字符或中文标点
+fn is_chinese_char(c: char) -> bool {
+    // 中文字符范围
+    (0x4E00..=0x9FFF).contains(&(c as u32)) ||  // CJK统一汉字
+    (0x3400..=0x4DBF).contains(&(c as u32)) ||  // CJK扩展A
+    (0x20000..=0x2A6DF).contains(&(c as u32)) || // CJK扩展B
+    (0x2A700..=0x2B73F).contains(&(c as u32)) || // CJK扩展C
+    (0x2B740..=0x2B81F).contains(&(c as u32)) || // CJK扩展D
+    (0x2B820..=0x2CEAF).contains(&(c as u32)) || // CJK扩展E
+    (0x2CEB0..=0x2EBEF).contains(&(c as u32)) || // CJK扩展F
+    (0x3000..=0x303F).contains(&(c as u32)) ||   // CJK符号和标点
+    (0xFF00..=0xFFEF).contains(&(c as u32))      // 全角ASCII、全角标点
+}
+
 #[cfg(target_os = "windows")]
 use base64::{Engine as _, engine::general_purpose};
 
@@ -170,9 +228,22 @@ async fn extract_text_windows(request: OcrRequest) -> OcrResult {
             .join()
             .map_err(|e| format!("Failed to join OCR operation: {:?}", e))?;
 
-        Ok(ocr_result.Text()
-            .map_err(|e| format!("Failed to get OCR result text: {:?}", e))?
-            .to_string())
+        // 使用 Lines() 方法获取每行文字，并用换行符连接
+        let lines = ocr_result.Lines()
+            .map_err(|e| format!("Failed to get OCR result lines: {:?}", e))?;
+        
+        let text = lines.into_iter()
+            .map(|line| {
+                line.Text()
+                    .map(|hstring| hstring.to_string())
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        
+        // 去除中文字符之间的空格
+        let text = remove_chinese_spaces(&text);
+        Ok(text)
     });
     
     // 清理临时文件
