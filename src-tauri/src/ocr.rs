@@ -7,6 +7,14 @@ use std::process::Command;
 #[cfg(target_os = "windows")]
 use base64::{Engine as _, engine::general_purpose};
 
+#[cfg(target_os = "windows")]
+use windows::{
+    core::*,
+    Graphics::Imaging::BitmapDecoder,
+    Media::Ocr::OcrEngine,
+    Storage::{FileAccessMode, StorageFile},
+};
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OcrResult {
     pub text: String,
@@ -134,17 +142,37 @@ async fn extract_text_windows(request: OcrRequest) -> OcrResult {
         }
         
         // 使用Windows OCR API
-        let file = StorageFile::GetFileFromPathAsync(file_path).map_err(|e| format!("Failed to get file: {:?}", e))?.await.map_err(|e| format!("Failed to await file: {:?}", e))?;
-        let stream = file.OpenAsync(FileAccessMode::Read).map_err(|e| format!("Failed to open file: {:?}", e))?.await.map_err(|e| format!("Failed to await stream: {:?}", e))?;
-        
-        let decode = BitmapDecoder::CreateAsync(stream).map_err(|e| format!("Failed to create bitmap decoder: {:?}", e))?.await.map_err(|e| format!("Failed to await decoder: {:?}", e))?;
-        let bitmap = decode.GetSoftwareBitmapAsync().map_err(|e| format!("Failed to get software bitmap: {:?}", e))?.await.map_err(|e| format!("Failed to await bitmap: {:?}", e))?;
-        
-        let engine = OcrEngine::TryCreateFromUserProfileLanguages().map_err(|e| format!("Failed to create OCR engine: {:?}", e))?;
-        let result = engine.RecognizeAsync(bitmap).map_err(|e| format!("Failed to recognize text: {:?}", e))?.await.map_err(|e| format!("Failed to await recognition: {:?}", e))?;
-        
-        let text = result.Text().map_err(|e| format!("Failed to get text: {:?}", e))?;
-        Ok(text.to_string())
+        let file = StorageFile::GetFileFromPathAsync(&HSTRING::from(file_path))
+            .map_err(|e| format!("Failed to get storage file: {:?}", e))?
+            .join()
+            .map_err(|e| format!("Failed to join storage file operation: {:?}", e))?;
+            
+        let stream = file.OpenAsync(FileAccessMode::Read)
+            .map_err(|e| format!("Failed to open file stream: {:?}", e))?
+            .join()
+            .map_err(|e| format!("Failed to join file stream operation: {:?}", e))?;
+
+        let decoder = BitmapDecoder::CreateAsync(&stream)
+            .map_err(|e| format!("Failed to create bitmap decoder: {:?}", e))?
+            .join()
+            .map_err(|e| format!("Failed to join bitmap decoder operation: {:?}", e))?;
+            
+        let bitmap = decoder.GetSoftwareBitmapAsync()
+            .map_err(|e| format!("Failed to get software bitmap: {:?}", e))?
+            .join()
+            .map_err(|e| format!("Failed to join software bitmap operation: {:?}", e))?;
+
+        let engine = OcrEngine::TryCreateFromUserProfileLanguages()
+            .map_err(|e| format!("Failed to create OCR engine: {:?}", e))?;
+            
+        let ocr_result = engine.RecognizeAsync(&bitmap)
+            .map_err(|e| format!("Failed to recognize text: {:?}", e))?
+            .join()
+            .map_err(|e| format!("Failed to join OCR operation: {:?}", e))?;
+
+        Ok(ocr_result.Text()
+            .map_err(|e| format!("Failed to get OCR result text: {:?}", e))?
+            .to_string())
     });
     
     // 清理临时文件

@@ -33,14 +33,13 @@ lazy_static = "1.4"
 
 # Windows OCR dependencies
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.30"
+version = "0.62.0"
 features = [
-    "alloc",
     "Media_Ocr", 
     "Graphics_Imaging", 
     "Storage_Streams", 
-    "Foundation",
 ]
+
 
 [target.'cfg(windows)'.dependencies]
 futures = "0.3.5"
