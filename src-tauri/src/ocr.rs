@@ -4,6 +4,9 @@ use tauri::command;
 #[cfg(target_os = "macos")]
 use std::process::Command;
 
+#[cfg(target_os = "windows")]
+use base64::{Engine as _, engine::general_purpose};
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OcrResult {
     pub text: String,
@@ -32,13 +35,19 @@ pub async fn extract_text_with_system_ocr(request: OcrRequest) -> OcrResult {
         extract_text_macos(request).await
     }
     
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
-        // 非macOS平台返回错误
+        // 在Windows上使用系统OCR
+        extract_text_windows(request).await
+    }
+    
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        // 非macOS和非Windows平台返回错误
         OcrResult {
             text: String::new(),
             success: false,
-            error_message: Some("System OCR is only available on macOS".to_string()),
+            error_message: Some("System OCR is only available on macOS and Windows".to_string()),
         }
     }
 }
@@ -51,14 +60,122 @@ pub async fn get_supported_recognition_languages() -> SupportedLanguagesResult {
         get_supported_languages_macos().await
     }
     
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
-        // 非macOS平台返回错误
+        // 在Windows上获取支持的语言
+        get_supported_languages_windows().await
+    }
+    
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        // 非macOS和非Windows平台返回错误
         SupportedLanguagesResult {
             languages: vec![],
             success: false,
-            error_message: Some("System OCR is only available on macOS".to_string()),
+            error_message: Some("System OCR is only available on macOS and Windows".to_string()),
         }
+    }
+}
+
+#[cfg(target_os = "windows")]
+async fn extract_text_windows(request: OcrRequest) -> OcrResult {
+    use std::io::Write;
+    use std::fs::File;
+    use std::env::temp_dir;
+    use windows::{
+        Graphics::Imaging::BitmapDecoder,
+        Media::Ocr::OcrEngine,
+        Storage::{FileAccessMode, StorageFile},
+    };
+    use futures::executor::block_on;
+    
+    // 解码base64图像数据
+    let image_data = match general_purpose::STANDARD.decode(&request.image_data) {
+        Ok(data) => data,
+        Err(e) => {
+            return OcrResult {
+                text: String::new(),
+                success: false,
+                error_message: Some(format!("Failed to decode base64 image data: {}", e)),
+            };
+        }
+    };
+    
+    // 创建临时文件
+    let mut temp_file_path = temp_dir();
+    temp_file_path.push(format!("ocr_temp_{}.png", uuid::Uuid::new_v4()));
+    
+    // 将图像数据写入临时文件
+    let mut temp_file = match File::create(&temp_file_path) {
+        Ok(file) => file,
+        Err(e) => {
+            return OcrResult {
+                text: String::new(),
+                success: false,
+                error_message: Some(format!("Failed to create temporary file: {}", e)),
+            };
+        }
+    };
+    
+    if let Err(e) = temp_file.write_all(&image_data) {
+        return OcrResult {
+            text: String::new(),
+            success: false,
+            error_message: Some(format!("Failed to write image data to temporary file: {}", e)),
+        };
+    }
+    
+    // 执行OCR识别
+    let result = block_on(async {
+        // 获取文件路径
+        let file_path = temp_file_path.to_str().unwrap_or("");
+        if file_path.is_empty() {
+            return Err("Failed to get temporary file path".to_string());
+        }
+        
+        // 使用Windows OCR API
+        let file = StorageFile::GetFileFromPathAsync(file_path).map_err(|e| format!("Failed to get file: {:?}", e))?.await.map_err(|e| format!("Failed to await file: {:?}", e))?;
+        let stream = file.OpenAsync(FileAccessMode::Read).map_err(|e| format!("Failed to open file: {:?}", e))?.await.map_err(|e| format!("Failed to await stream: {:?}", e))?;
+        
+        let decode = BitmapDecoder::CreateAsync(stream).map_err(|e| format!("Failed to create bitmap decoder: {:?}", e))?.await.map_err(|e| format!("Failed to await decoder: {:?}", e))?;
+        let bitmap = decode.GetSoftwareBitmapAsync().map_err(|e| format!("Failed to get software bitmap: {:?}", e))?.await.map_err(|e| format!("Failed to await bitmap: {:?}", e))?;
+        
+        let engine = OcrEngine::TryCreateFromUserProfileLanguages().map_err(|e| format!("Failed to create OCR engine: {:?}", e))?;
+        let result = engine.RecognizeAsync(bitmap).map_err(|e| format!("Failed to recognize text: {:?}", e))?.await.map_err(|e| format!("Failed to await recognition: {:?}", e))?;
+        
+        let text = result.Text().map_err(|e| format!("Failed to get text: {:?}", e))?;
+        Ok(text.to_string())
+    });
+    
+    // 清理临时文件
+    let _ = std::fs::remove_file(&temp_file_path);
+    
+    match result {
+        Ok(text) => OcrResult {
+            text,
+            success: true,
+            error_message: None,
+        },
+        Err(e) => OcrResult {
+            text: String::new(),
+            success: false,
+            error_message: Some(e),
+        },
+    }
+}
+
+#[cfg(target_os = "windows")]
+async fn get_supported_languages_windows() -> SupportedLanguagesResult {
+    use windows::{
+        Media::Ocr::OcrEngine,
+    };
+    
+    // Windows OCR使用系统默认语言，不需要显式指定语言
+    // 返回一个默认语言列表
+    SupportedLanguagesResult {
+        languages: vec!["en-US".to_string(), "zh-CN".to_string()], // 示例语言
+        success: true,
+        error_message: None,
     }
 }
 
