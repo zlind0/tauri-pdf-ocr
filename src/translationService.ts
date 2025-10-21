@@ -1,5 +1,4 @@
 import { Store } from '@tauri-apps/plugin-store'
-import { fetch } from '@tauri-apps/plugin-http'
 
 interface TranslationSettings {
   endpoint: string
@@ -58,13 +57,6 @@ export class TranslationService {
         signal: abortController.signal
       })
 
-      console.log('STOP THIS FUCK YOU!')
-      abortController.abort("fuck")
-
-      debugger
-
-      return ''
-
       if (!response.ok) {
         throw new Error(`翻译API请求失败: ${response.status}`)
       }
@@ -79,19 +71,8 @@ export class TranslationService {
       let accumulatedData = ''
       let fullResponse = ''
 
-      const abortPromise = new Promise<never>((resolve, reject) => {
-        abortController.signal.addEventListener('abort', async () => {
-          const reason = abortController.signal.reason
-          await reader.cancel(reason)
-          reject(reason)
-        })
-      })
-
       while (!done) {
-        const { value, done: readerDone } = await Promise.race<[
-          Promise<never>,
-          Promise<ReadableStreamReadResult<Uint8Array<ArrayBuffer>>>,
-        ]>([abortPromise, reader.read()])
+        const { value, done: readerDone } = await reader.read()
         done = readerDone
 
         if (abortController.signal.aborted) {
