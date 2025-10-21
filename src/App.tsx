@@ -14,8 +14,6 @@ import type { Theme } from './themeManager'
 import { getCurrentTheme, setTheme, applyTheme, themes } from './themeManager'
 // Import icons
 import { FiFolder, FiChevronLeft, FiChevronRight, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi'
-// Import color adjuster
-import { adjustPdfColors } from './pdfColorAdjuster'
 // Import WebGL color adjuster
 import { adjustPdfColorsWebGL } from './webglPdfColorAdjuster'
 

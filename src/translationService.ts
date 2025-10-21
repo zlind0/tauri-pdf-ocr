@@ -7,14 +7,6 @@ interface TranslationSettings {
   model: string
 }
 
-interface ChatCompletionResponse {
-  choices: Array<{
-    message: {
-      content: string
-    }
-  }>
-}
-
 export class TranslationService {
   private static currentAbortController: AbortController | null = null
 
@@ -40,8 +32,7 @@ export class TranslationService {
       this.currentAbortController.abort()
     }
 
-    this.currentAbortController = new AbortController()
-    const abortController = this.currentAbortController
+    const abortController = this.currentAbortController = new AbortController()
 
     try {
       const settings = await this.getSettings()
@@ -59,13 +50,20 @@ export class TranslationService {
           model: settings.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: systemPrompt+"\n===\n"+text }
+            { role: 'user', content: systemPrompt + "\n===\n" + text }
           ],
           max_tokens: 4096,
           stream: true
         }),
         signal: abortController.signal
       })
+
+      console.log('STOP THIS FUCK YOU!')
+      abortController.abort("fuck")
+
+      debugger
+
+      return ''
 
       if (!response.ok) {
         throw new Error(`翻译API请求失败: ${response.status}`)
@@ -81,10 +79,21 @@ export class TranslationService {
       let accumulatedData = ''
       let fullResponse = ''
 
+      const abortPromise = new Promise<never>((resolve, reject) => {
+        abortController.signal.addEventListener('abort', async () => {
+          const reason = abortController.signal.reason
+          await reader.cancel(reason)
+          reject(reason)
+        })
+      })
+
       while (!done) {
-        const { value, done: readerDone } = await reader.read()
+        const { value, done: readerDone } = await Promise.race<[
+          Promise<never>,
+          Promise<ReadableStreamReadResult<Uint8Array<ArrayBuffer>>>,
+        ]>([abortPromise, reader.read()])
         done = readerDone
-        
+
         if (abortController.signal.aborted) {
           reader.cancel()
           throw new Error('Request canceled')

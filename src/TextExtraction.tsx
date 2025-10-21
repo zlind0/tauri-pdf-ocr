@@ -39,7 +39,7 @@ export function TextExtraction({ canvasRef, pageNumber, canvasRendered, filePath
   // 添加在OCR或翻译完成后自动朗读的标志，此标志打开时，自动朗读并翻页直到读完。相比于isSpeaking，此状态也包括未在朗读而正在等待ocr的状态
 
   const lastUpdateSourceRef = useRef<'none' | 'ocr' | 'translate'>('none')
-  const speakingStatusCallbackRef = useRef<(isSpeaking: boolean) => void>()
+  const speakingStatusCallbackRef = useRef<(isSpeaking: boolean) => void>(null)
 
   const extractText = async (useCache = true, canvasDataUrl: string): Promise<string> => {
     if (!canvasRef.current || !fileMd5 || !pageNumber) return ''
