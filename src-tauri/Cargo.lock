@@ -109,6 +109,7 @@ dependencies = [
  "tauri-plugin-store",
  "uuid",
  "windows 0.62.0",
+ "windows-collections 0.3.0",
 ]
 
 [[package]]

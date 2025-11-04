@@ -71,7 +71,11 @@ use windows::{
     Graphics::Imaging::BitmapDecoder,
     Media::Ocr::OcrEngine,
     Storage::{FileAccessMode, StorageFile},
+    Globalization::Language,
 };
+
+#[cfg(target_os = "windows")]
+use windows_collections::IVectorView;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OcrResult {
@@ -143,7 +147,7 @@ pub async fn get_supported_recognition_languages() -> SupportedLanguagesResult {
     }
 }
 
-#[cfg(target_os = "windows")]
+
 async fn extract_text_windows(request: OcrRequest) -> OcrResult {
     use std::io::Write;
     use std::fs::File;
@@ -220,8 +224,15 @@ async fn extract_text_windows(request: OcrRequest) -> OcrResult {
             .join()
             .map_err(|e| format!("Failed to join software bitmap operation: {:?}", e))?;
 
-        let engine = OcrEngine::TryCreateFromUserProfileLanguages()
-            .map_err(|e| format!("Failed to create OCR engine: {:?}", e))?;
+        let engine = if let Some(lang_tag) = request.languages.as_ref().and_then(|langs| langs.first()) {
+            let language = windows::Globalization::Language::CreateLanguage(&windows::core::HSTRING::from(lang_tag.as_str()))
+                .map_err(|e| format!("Failed to create language '{}': {:?}", lang_tag, e))?;
+            OcrEngine::TryCreateFromLanguage(&language)
+                .map_err(|e| format!("Failed to create OCR engine for language '{}': {:?}", lang_tag, e))?
+        } else {
+            OcrEngine::TryCreateFromUserProfileLanguages()
+                .map_err(|e| format!("Failed to create OCR engine from user profile languages: {:?}", e))?
+        };
             
         let ocr_result = engine.RecognizeAsync(&bitmap)
             .map_err(|e| format!("Failed to recognize text: {:?}", e))?
@@ -262,19 +273,28 @@ async fn extract_text_windows(request: OcrRequest) -> OcrResult {
         },
     }
 }
-
+//请使用pub fn AvailableRecognizerLanguages() -> Result<IVectorView<Language>>实现ocr.rs:266
 #[cfg(target_os = "windows")]
 async fn get_supported_languages_windows() -> SupportedLanguagesResult {
-    use windows::{
-        Media::Ocr::OcrEngine,
-    };
-    
-    // Windows OCR使用系统默认语言，不需要显式指定语言
-    // 返回一个默认语言列表
-    SupportedLanguagesResult {
-        languages: vec!["en-US".to_string(), "zh-CN".to_string()], // 示例语言
-        success: true,
-        error_message: None,
+    match OcrEngine::AvailableRecognizerLanguages() {
+        Ok(languages_vector) => {
+            let mut languages: Vec<String> = Vec::new();
+            for language in languages_vector {
+                if let Ok(display_name) = language.LanguageTag() {
+                    languages.push(display_name.to_string());
+                }
+            }
+            SupportedLanguagesResult {
+                languages,
+                success: true,
+                error_message: None,
+            }
+        }
+        Err(e) => SupportedLanguagesResult {
+            languages: vec![],
+            success: false,
+            error_message: Some(format!("Failed to get available recognizer languages: {:?}", e)),
+        },
     }
 }
 
