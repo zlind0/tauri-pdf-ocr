@@ -1,49 +1,59 @@
-use std::process::Command;
 use std::env;
-use std::path::Path;
+use std::path::PathBuf;
 
 fn main() {
-    tauri_build::build();
-    // 只在 macOS 上编译 Swift OCR 程序
+    // Only run this build script on macOS
     if env::var("CARGO_CFG_TARGET_OS").unwrap_or_default() == "macos" {
-        let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-        let target_dir = env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".to_string());
-        
-        // Swift 源文件路径
-        let swift_src = Path::new(&manifest_dir).join("src/ocr.swift");
-        // 输出可执行文件路径 (在 target 目录中)
-        let ocr_executable = Path::new(&target_dir).join("ocr");
-        
-        // 确保 src 目录存在
-        if swift_src.exists() {
-            println!("cargo:warning=Compiling Swift OCR program...");
-            
-            // 编译 Swift 程序
-            let output = Command::new("swiftc")
-                .arg("-o")
-                .arg(&ocr_executable)
-                .arg(&swift_src)
-                .output();
-                
-            match output {
-                Ok(output) => {
-                    if output.status.success() {
-                        println!("cargo:warning=Swift OCR program compiled successfully");
-                        // 将可执行文件复制到最终的 bundle 目录
-                        println!("cargo:rustc-env=OCR_EXECUTABLE_PATH={}", ocr_executable.display());
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        println!("cargo:warning=Failed to compile Swift OCR program: {}", stderr);
-                    }
-                }
-                Err(e) => {
-                    println!("cargo:warning=Failed to execute swiftc: {}", e);
-                }
-            }
-        } else {
-            println!("cargo:warning=Swift source file not found: {}", swift_src.display());
+        let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+        // Define paths for the object and library files
+        let obj_path = out_dir.join("ocr.o");
+        let lib_path = out_dir.join("libocr.a");
+
+        // Compile the Swift code into an object file
+        // Note: Add '-swift-version 5' or your specific version if needed.
+        let status = std::process::Command::new("swiftc")
+            .args(&[
+                "-c",
+                "src/ocr.swift", // Relative to src-tauri/
+                "-o",
+                obj_path.to_str().unwrap(),
+            ])
+            .status()
+            .expect("Failed to compile Swift code");
+
+        if !status.success() {
+            panic!("Swift compilation failed. Check for errors above.");
         }
-        
+
+        // Create a static library from the compiled object file
+        let status = std::process::Command::new("ar")
+            .args(&[
+                "rcs",
+                lib_path.to_str().unwrap(),
+                obj_path.to_str().unwrap(),
+            ])
+            .status()
+            .expect("Failed to create static library 'libocr.a'");
+
+        if !status.success() {
+            panic!("Failed to create static library. Check for errors above.");
+        }
+
+        // Instruct Cargo to link our new static library
+        println!("cargo:rustc-link-search=native={}", out_dir.display());
+        println!("cargo:rustc-link-lib=static=ocr");
+
+        // Instruct Cargo to link the necessary macOS frameworks
+        println!("cargo:rustc-link-lib=framework=Vision");
+        println!("cargo:rustc-link-lib=framework=Foundation");
+        println!("cargo:rustc-link-lib=framework=AVFoundation");
+
+
+        // Tell Cargo to rerun this script if the Swift file changes
         println!("cargo:rerun-if-changed=src/ocr.swift");
     }
+
+    // Let Tauri do its thing
+    tauri_build::build();
 }

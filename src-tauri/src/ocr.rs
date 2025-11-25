@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 
-#[cfg(target_os = "macos")]
-use std::process::Command;
+
 
 /// 去除中文字符之间的空格
 /// 保留拉丁字母之间的空格，只去除中文字符与中文字符或中文标点之间的空格
@@ -147,7 +146,7 @@ pub async fn get_supported_recognition_languages() -> SupportedLanguagesResult {
     }
 }
 
-
+#[cfg(target_os = "windows")]
 async fn extract_text_windows(request: OcrRequest) -> OcrResult {
     use std::io::Write;
     use std::fs::File;
@@ -298,76 +297,47 @@ async fn get_supported_languages_windows() -> SupportedLanguagesResult {
     }
 }
 
+// FFI bindings to the Swift functions
+#[cfg(target_os = "macos")]
+use std::ffi::{CStr, CString};
+#[cfg(target_os = "macos")]
+use std::os::raw::c_char;
+
+#[cfg(target_os = "macos")]
+extern "C" {
+    fn perform_ocr(imagePath: *const c_char, languages: *const c_char) -> *mut c_char;
+    fn get_supported_languages() -> *mut c_char;
+    fn free_string(ptr: *mut c_char);
+}
+
 #[cfg(target_os = "macos")]
 async fn get_supported_languages_macos() -> SupportedLanguagesResult {
-    // 获取OCR可执行文件路径
-    // 首先尝试从环境变量获取（由build.rs设置）
-    let ocr_executable_path = if let Ok(path) = std::env::var("OCR_EXECUTABLE_PATH") {
-        std::path::PathBuf::from(path)
-    } else {
-        // 如果环境变量不存在，尝试在当前可执行文件目录查找
-        let exe_path = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("./"));
-        let exe_dir = exe_path.parent().unwrap_or_else(|| std::path::Path::new("."));
-        exe_dir.join("ocr")
-    };
-    
-    // 检查OCR可执行文件是否存在
-    if !ocr_executable_path.exists() {
-        return SupportedLanguagesResult {
-            languages: vec![],
-            success: false,
-            error_message: Some(format!("OCR executable not found at: {:?}", ocr_executable_path)),
-        };
-    }
-    
-    // 执行OCR程序获取支持的语言
-    let output = Command::new(&ocr_executable_path)
-        .output();
-    
-    match output {
-        Ok(output) => {
-            if output.status.success() {
-                let output_str = String::from_utf8_lossy(&output.stdout);
-                let lines: Vec<&str> = output_str.lines().collect();
-                
-                // 查找语言列表的开始和结束标记
-                let start_index = lines.iter().position(|&line| line == "SUPPORTED_LANGUAGES_START");
-                let end_index = lines.iter().position(|&line| line == "SUPPORTED_LANGUAGES_END");
-                
-                if let (Some(start), Some(end)) = (start_index, end_index) {
-                    // 提取语言列表
-                    let languages: Vec<String> = lines[start+1..end]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect();
-                    
-                    SupportedLanguagesResult {
-                        languages,
-                        success: true,
-                        error_message: None,
-                    }
-                } else {
-                    SupportedLanguagesResult {
-                        languages: vec![],
-                        success: false,
-                        error_message: Some("Failed to parse supported languages from OCR output".to_string()),
-                    }
-                }
-            } else {
-                let error = String::from_utf8_lossy(&output.stderr);
-                SupportedLanguagesResult {
-                    languages: vec![],
-                    success: false,
-                    error_message: Some(format!("Failed to get supported languages: {}", error)),
-                }
-            }
-        }
-        Err(e) => {
-            SupportedLanguagesResult {
+    let result = unsafe {
+        let c_str_ptr = get_supported_languages();
+        if c_str_ptr.is_null() {
+            return SupportedLanguagesResult {
                 languages: vec![],
                 success: false,
-                error_message: Some(format!("Failed to execute OCR to get supported languages: {}", e)),
-            }
+                error_message: Some("Failed to get supported languages: null pointer returned.".to_string()),
+            };
+        }
+        let languages_str = CStr::from_ptr(c_str_ptr).to_string_lossy().into_owned();
+        free_string(c_str_ptr);
+        languages_str
+    };
+
+    if result.starts_with("Error:") {
+        SupportedLanguagesResult {
+            languages: vec![],
+            success: false,
+            error_message: Some(result),
+        }
+    } else {
+        let languages = result.split(',').map(|s| s.to_string()).filter(|s| !s.is_empty()).collect();
+        SupportedLanguagesResult {
+            languages,
+            success: true,
+            error_message: None,
         }
     }
 }
@@ -378,8 +348,8 @@ async fn extract_text_macos(request: OcrRequest) -> OcrResult {
     use std::fs::File;
     use std::env::temp_dir;
     use base64::{Engine as _, engine::general_purpose};
-    
-    // 解码base64图像数据
+
+    // Decode base64 image data
     let image_data = match general_purpose::STANDARD.decode(&request.image_data) {
         Ok(data) => data,
         Err(e) => {
@@ -390,94 +360,67 @@ async fn extract_text_macos(request: OcrRequest) -> OcrResult {
             };
         }
     };
-    
-    // 创建临时文件
+
+    // Create a temporary file to store the image
     let mut temp_file_path = temp_dir();
     temp_file_path.push(format!("ocr_temp_{}.png", uuid::Uuid::new_v4()));
-    
-    // 将图像数据写入临时文件
-    let mut temp_file = match File::create(&temp_file_path) {
-        Ok(file) => file,
-        Err(e) => {
+
+    {
+        let mut temp_file = match File::create(&temp_file_path) {
+            Ok(file) => file,
+            Err(e) => {
+                return OcrResult {
+                    text: String::new(),
+                    success: false,
+                    error_message: Some(format!("Failed to create temporary file: {}", e)),
+                };
+            }
+        };
+
+        if let Err(e) = temp_file.write_all(&image_data) {
+            let _ = std::fs::remove_file(&temp_file_path); // Clean up before returning
             return OcrResult {
                 text: String::new(),
                 success: false,
-                error_message: Some(format!("Failed to create temporary file: {}", e)),
+                error_message: Some(format!("Failed to write image data to temporary file: {}", e)),
             };
         }
-    };
-    
-    if let Err(e) = temp_file.write_all(&image_data) {
-        return OcrResult {
-            text: String::new(),
-            success: false,
-            error_message: Some(format!("Failed to write image data to temporary file: {}", e)),
-        };
     }
-    
-    // 获取OCR可执行文件路径
-    // 首先尝试从环境变量获取（由build.rs设置）
-    let ocr_executable_path = if let Ok(path) = std::env::var("OCR_EXECUTABLE_PATH") {
-        std::path::PathBuf::from(path)
-    } else {
-        // 如果环境变量不存在，尝试在当前可执行文件目录查找
-        let exe_path = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("./"));
-        let exe_dir = exe_path.parent().unwrap_or_else(|| std::path::Path::new("."));
-        exe_dir.join("ocr")
-    };
-    
-    // 检查OCR可执行文件是否存在
-    if !ocr_executable_path.exists() {
-        let _ = std::fs::remove_file(&temp_file_path);
-        return OcrResult {
-            text: String::new(),
-            success: false,
-            error_message: Some(format!("OCR executable not found at: {:?}", ocr_executable_path)),
-        };
-    }
-    
-    // 构建命令参数
-    let mut cmd = Command::new(&ocr_executable_path);
-    cmd.arg(&temp_file_path);
-    
-    // 如果提供了语言选项，则添加语言参数
-    if let Some(languages) = &request.languages {
-        if !languages.is_empty() {
-            let languages_str = languages.join(",");
-            cmd.arg(languages_str);
+
+    // Prepare C-style strings for the FFI call
+    let path_cstring = CString::new(temp_file_path.to_str().unwrap_or("")).unwrap();
+    let languages_str = request.languages.unwrap_or_default().join(",");
+    let lang_cstring = CString::new(languages_str).unwrap();
+
+    // Call the Swift function via FFI
+    let result = unsafe {
+        let c_str_ptr = perform_ocr(path_cstring.as_ptr(), lang_cstring.as_ptr());
+        if c_str_ptr.is_null() {
+            String::from("OCR failed: null pointer returned.")
+        } else {
+            let text = CStr::from_ptr(c_str_ptr).to_string_lossy().into_owned();
+            free_string(c_str_ptr);
+            text
         }
-    }
-    
-    // 执行OCR程序
-    let output = cmd.output();
-    
-    // 清理临时文件
+    };
+
+    // Clean up the temporary file
     let _ = std::fs::remove_file(&temp_file_path);
-    
-    match output {
-        Ok(output) => {
-            if output.status.success() {
-                let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                OcrResult {
-                    text,
-                    success: true,
-                    error_message: None,
-                }
-            } else {
-                let error = String::from_utf8_lossy(&output.stderr);
-                OcrResult {
-                    text: String::new(),
-                    success: false,
-                    error_message: Some(format!("OCR failed: {}", error)),
-                }
-            }
+
+    // Process the OCR result
+    if result.starts_with("Error:") || result.starts_with("OCR failed:") || result.starts_with("No text found") {
+        OcrResult {
+            text: String::new(),
+            success: false,
+            error_message: Some(result),
         }
-        Err(e) => {
-            OcrResult {
-                text: String::new(),
-                success: false,
-                error_message: Some(format!("Failed to execute OCR: {}", e)),
-            }
+    } else {
+        // Apply post-processing to the recognized text
+        let text = remove_chinese_spaces(&result);
+        OcrResult {
+            text,
+            success: true,
+            error_message: None,
         }
     }
 }

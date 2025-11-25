@@ -1,112 +1,104 @@
-import Cocoa
+import Foundation
 import Vision
+import AppKit
 
-// 获取系统支持的OCR语言
-func getSupportedRecognitionLanguages() -> [String] {
-    // 正确的写法是调用方法并处理异常
+// Helper to create a C-style string (char*) from a Swift String.
+// The caller is responsible for deallocating the returned pointer.
+func stringToCharP(_ str: String) -> UnsafeMutablePointer<CChar> {
+    let count = str.utf8.count + 1
+    let result = UnsafeMutablePointer<CChar>.allocate(capacity: count)
+    str.withCString { (baseAddress) in
+        strncpy(result, baseAddress, count)
+    }
+    return result
+}
+
+// Exposes the perform_ocr function to C.
+// Takes a C-string path to an image and a C-string of comma-separated languages.
+// Returns a C-string with the recognized text, or an error message.
+@_cdecl("perform_ocr")
+public func perform_ocr(imagePath: UnsafePointer<CChar>, languages: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>? {
+    let path = String(cString: imagePath)
+    let langStr = String(cString: languages)
+    
+    let url = URL(fileURLWithPath: path)
+
+    guard let image = NSImage(contentsOf: url),
+          let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        return stringToCharP("Error: Could not load image from \(path)")
+    }
+    
+    var recognizedText = ""
+    let request = VNRecognizeTextRequest { (request, error) in
+        if let error = error {
+            recognizedText = "OCR Error: \(error.localizedDescription)"
+            return
+        }
+        
+        guard let observations = request.results as? [VNRecognizedTextObservation] else {
+            recognizedText = "Error: No text observations found"
+            return
+        }
+        
+        recognizedText = observations.compactMap {
+            $0.topCandidates(1).first?.string
+        }.joined(separator: "\n")
+    }
+    
+    request.recognitionLevel = .accurate
+    
+    let langArray = langStr.split(separator: ",").map(String.init)
+    if !langArray.isEmpty {
+        do {
+            let supportedLanguages = try request.supportedRecognitionLanguages()
+            let validLanguages = langArray.filter { supportedLanguages.contains($0) }
+            if !validLanguages.isEmpty {
+                request.recognitionLanguages = validLanguages
+            }
+        } catch {
+            // If language validation fails, proceed with the default languages.
+        }
+    }
+
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let semaphore = DispatchSemaphore(value: 0)
+    
+    // Perform the request on a background thread.
+    DispatchQueue.global(qos: .userInitiated).async {
+        do {
+            try handler.perform([request])
+        } catch {
+            recognizedText = "Failed to perform OCR: \(error.localizedDescription)"
+        }
+        semaphore.signal()
+    }
+    
+    // Wait for the OCR to complete, with a timeout.
+    _ = semaphore.wait(timeout: .now() + 30)
+
+    if recognizedText.isEmpty {
+        return stringToCharP("No text found or OCR timed out.")
+    }
+    
+    return stringToCharP(recognizedText)
+}
+
+// Exposes the get_supported_languages function to C.
+// Returns a C-string containing a comma-separated list of supported languages.
+@_cdecl("get_supported_languages")
+public func get_supported_languages() -> UnsafeMutablePointer<CChar>? {
     do {
         let request = VNRecognizeTextRequest()
-        return try request.supportedRecognitionLanguages()
+        let supported = try request.supportedRecognitionLanguages()
+        let resultString = supported.joined(separator: ",")
+        return stringToCharP(resultString)
     } catch {
-        print("Error getting supported languages: \(error)")
-        return []
+        return stringToCharP("Error: \(error.localizedDescription)")
     }
 }
 
-// 从命令行参数获取文件路径和语言选项
-// 注意：CommandLine.arguments.count 至少为1（程序名本身）
-if CommandLine.arguments.count <= 1 {
-    // 如果没有参数，返回支持的语言列表
-    let languages = getSupportedRecognitionLanguages()
-    print("SUPPORTED_LANGUAGES_START")
-    for language in languages {
-        print(language)
-    }
-    print("SUPPORTED_LANGUAGES_END")
-    exit(0)
-}
-
-// 必须至少有文件路径参数
-guard CommandLine.arguments.count > 1 else {
-    print("Usage: ocr <image_path> [language1,language2,...]")
-    exit(1)
-}
-
-let imagePath = CommandLine.arguments[1]
-let url = URL(fileURLWithPath: imagePath)
-
-// 获取语言参数（如果有）
-var languages: [String] = []
-if CommandLine.arguments.count > 2 {
-    let languagesString = CommandLine.arguments[2]
-    languages = languagesString.split(separator: ",").map { String($0) }
-}
-
-// 加载图像
-guard let image = NSImage(contentsOf: url) else {
-    print("Error: Could not load image from \(imagePath)")
-    exit(1)
-}
-
-// 将 NSImage 转换为 CGImage
-guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-    print("Error: Could not convert image to CGImage")
-    exit(1)
-}
-
-// 创建 Vision 请求
-let request = VNRecognizeTextRequest { (request, error) in
-    if let error = error {
-        print("OCR Error: \(error)")
-        exit(1)
-    }
-    
-    guard let observations = request.results as? [VNRecognizedTextObservation] else {
-        print("Error: No text observations found")
-        exit(1)
-    }
-    
-    // 提取识别的文本
-    var recognizedText = ""
-    for observation in observations {
-        guard let topCandidate = observation.topCandidates(1).first else { continue }
-        recognizedText += topCandidate.string + "\n"
-    }
-    
-    // 输出结果
-    print(recognizedText)
-}
-
-// 设置识别级别
-request.recognitionLevel = .accurate
-
-// 设置识别语言（如果提供了有效语言）
-if !languages.isEmpty {
-    // 在设置语言之前，最好验证一下这些语言是否被支持
-    do {
-        let supportedLanguages = try request.supportedRecognitionLanguages()
-        let validLanguages = languages.filter { supportedLanguages.contains($0) }
-        if !validLanguages.isEmpty {
-            request.recognitionLanguages = validLanguages
-        } else {
-            print("Warning: None of the provided languages are supported. Using default.")
-            request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
-        }
-    } catch {
-        print("Could not verify languages, using default. Error: \(error)")
-        request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
-    }
-} else {
-    // 默认支持中英文
-    request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
-}
-
-
-// 执行请求
-let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-do {
-    try handler.perform([request])
-} catch {
-    print("Failed to perform OCR: \(error)")
-    exit(1)
+// Exposes a function to C for deallocating strings created in Swift.
+@_cdecl("free_string")
+public func free_string(ptr: UnsafeMutablePointer<CChar>?) {
+    ptr?.deallocate()
 }
